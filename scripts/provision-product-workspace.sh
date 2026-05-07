@@ -429,9 +429,12 @@ set_env_for_agent() {
 
 if [[ -n "${GH_TOKEN:-}${DATABASE_URL:-}" ]]; then
   echo "==> Setting custom env on relevant agents..."
-  for agent in task-breaker code-reviewer; do
+  # pm-grooming needs GH_TOKEN to commit+push the bootstrap-product PR
+  # task-breaker creates branches via gh; code-reviewer reads PR diffs via gh
+  for agent in pm-grooming task-breaker code-reviewer; do
     set_env_for_agent "$agent" "GH_TOKEN=${GH_TOKEN:-}"
   done
+  # devs/qa need both: GH_TOKEN for git/PR + DATABASE_URL for tests
   for agent in fe-dev be-dev qa-tester; do
     set_env_for_agent "$agent" "GH_TOKEN=${GH_TOKEN:-}" "DATABASE_URL=${DATABASE_URL:-}"
   done
