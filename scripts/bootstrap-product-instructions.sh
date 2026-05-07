@@ -20,22 +20,23 @@ require() { command -v "$1" >/dev/null 2>&1 || { echo "❌ Missing: $1" >&2; exi
 require multica
 require jq
 
-# Resolve workspace ID
-WORKSPACE_JSON=$(multica workspace list --output json)
-WORKSPACE_ID=$(echo "$WORKSPACE_JSON" | jq -r --arg slug "$PRODUCT_SLUG" '
-  (.[]? // empty) | select(.slug == $slug or .name == $slug) | .id
-' | head -1)
+# Resolve workspace ID by name (CLI v0.2.26: `workspace list` returns table only)
+WORKSPACE_ID=$(multica workspace list 2>/dev/null | awk -v target="$PRODUCT_SLUG" '
+  NR>1 {
+    id=$1
+    name=""
+    for (i=2; i<=NF; i++) name = (name=="") ? $i : name " " $i
+    if (tolower(name) == tolower(target)) { print id; exit }
+  }
+')
 
-if [[ -z "$WORKSPACE_ID" || "$WORKSPACE_ID" == "null" ]]; then
+if [[ -z "$WORKSPACE_ID" ]]; then
   echo "❌ Workspace '${PRODUCT_SLUG}' not found. Run provision-product-workspace.sh first." >&2
   exit 1
 fi
 
-# Resolve workspace slug for URL (in case user passed name, not slug)
-SLUG=$(echo "$WORKSPACE_JSON" | jq -r --arg id "$WORKSPACE_ID" '
-  (.[]? // empty) | select(.id == $id) | .slug
-' | head -1)
-SLUG="${SLUG:-$PRODUCT_SLUG}"
+# Slug is the lowercased name (Multica convention); fall back to product-slug arg
+SLUG="$PRODUCT_SLUG"
 
 # Find the product repo from the MVP project resources
 PROJECT_LIST_JSON=$(MULTICA_WORKSPACE_ID="$WORKSPACE_ID" multica project list --output json 2>/dev/null || echo '[]')

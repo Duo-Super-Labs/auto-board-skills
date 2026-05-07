@@ -67,13 +67,18 @@ if echo "$DAEMON_STATUS" | grep -qi 'stopped'; then
 fi
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 1. Resolve workspace ID by slug (workspace must already exist via UI)
+# 1. Resolve workspace ID by name (multica CLI v0.2.26: workspace list returns
+#     a 2-column table — `ID  NAME` — and does NOT support --output json)
 # ──────────────────────────────────────────────────────────────────────────────
-echo "==> Resolving workspace ID for slug '${PRODUCT_SLUG}'..."
-WORKSPACE_JSON=$(multica workspace list --output json)
-WORKSPACE_ID=$(echo "$WORKSPACE_JSON" | jq -r --arg slug "$PRODUCT_SLUG" '
-  (.[]? // empty) | select(.slug == $slug or .name == $slug) | .id
-' | head -1)
+echo "==> Resolving workspace ID for '${PRODUCT_SLUG}'..."
+WORKSPACE_ID=$(multica workspace list 2>/dev/null | awk -v target="$PRODUCT_SLUG" '
+  NR>1 {
+    id=$1
+    name=""
+    for (i=2; i<=NF; i++) name = (name=="") ? $i : name " " $i
+    if (tolower(name) == tolower(target)) { print id; exit }
+  }
+')
 
 if [[ -z "$WORKSPACE_ID" || "$WORKSPACE_ID" == "null" ]]; then
   echo ""
@@ -104,20 +109,26 @@ else
 fi
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 3. Create MVP project with repos attached as resources
+# 3. Create MVP project with repos attached as resources (idempotent: reuse if exists)
 # ──────────────────────────────────────────────────────────────────────────────
-echo "==> Creating 'MVP' project with repos..."
-PROJECT_OUT=$(multica project create \
-  --title "MVP" \
-  --description "Minimum viable product slice — auto-board pipeline" \
-  --status "in_progress" \
-  --repo "${PRODUCT_REPO}" \
-  --repo "${DESIGN_SYSTEM_REPO}" \
-  --output json)
+echo "==> Resolving 'MVP' project (creating if missing)..."
+PROJECT_ID=$(multica project list --output json 2>/dev/null \
+  | jq -r '(.[]? // empty) | select(.title=="MVP") | .id' | head -1)
 
-PROJECT_ID=$(echo "$PROJECT_OUT" | jq -r '.id')
-echo "    ✓ Project created: ${PROJECT_ID}"
-echo "    ✓ Repos attached: ${PRODUCT_REPO}, ${DESIGN_SYSTEM_REPO}"
+if [[ -n "$PROJECT_ID" && "$PROJECT_ID" != "null" ]]; then
+  echo "    ✓ Reusing existing project: ${PROJECT_ID}"
+else
+  PROJECT_OUT=$(multica project create \
+    --title "MVP" \
+    --description "Minimum viable product slice — auto-board pipeline" \
+    --status "in_progress" \
+    --repo "${PRODUCT_REPO}" \
+    --repo "${DESIGN_SYSTEM_REPO}" \
+    --output json)
+  PROJECT_ID=$(echo "$PROJECT_OUT" | jq -r '.id')
+  echo "    ✓ Project created: ${PROJECT_ID}"
+  echo "    ✓ Repos attached: ${PRODUCT_REPO}, ${DESIGN_SYSTEM_REPO}"
+fi
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 4. Import 15 skills (in stable order)
@@ -142,23 +153,86 @@ SKILLS=(
   "14b-playwright-smoke"
 )
 
-declare -A SKILL_ID_BY_DIR
+# Parallel arrays (macOS bash 3.2 lacks `declare -A`)
+SKILL_DIRS_ARR=()
+SKILL_IDS_ARR=()
+
+# CLI gap (v0.2.26): `multica skill import --url` rejects github.com URLs at
+# the server (only clawhub.ai / skills.sh accepted). We bypass by uploading
+# locally via `skill create` + `skill files upsert`.
+
+EXISTING_SKILLS_JSON=$(multica skill list --output json 2>/dev/null || echo '[]')
 
 for skill_dir in "${SKILLS[@]}"; do
-  printf "    importing %-28s ... " "${skill_dir}"
-  IMPORT_OUT=$(multica skill import \
-    --url "${SKILLS_REPO}/tree/${SKILLS_BRANCH}/${skill_dir}" \
+  printf "    creating %-28s ... " "${skill_dir}"
+
+  skill_md="${SKILLS_DIR}/${skill_dir}/SKILL.md"
+  if [[ ! -f "$skill_md" ]]; then
+    echo "FAILED (no SKILL.md)"
+    exit 1
+  fi
+
+  # Extract name + description from YAML frontmatter (lines like "name: X" / "description: Y")
+  skill_name=$(awk '/^name:[[:space:]]/ {sub(/^name:[[:space:]]+/, ""); print; exit}' "$skill_md")
+  skill_desc=$(awk '/^description:[[:space:]]/ {sub(/^description:[[:space:]]+/, ""); print; exit}' "$skill_md")
+
+  if [[ -z "$skill_name" ]]; then
+    echo "FAILED (no name in frontmatter)"
+    exit 1
+  fi
+
+  # Idempotent: reuse if a skill with this name already exists
+  EXISTING_ID=$(echo "$EXISTING_SKILLS_JSON" | jq -r --arg n "$skill_name" '
+    (.[]? // empty) | select(.name == $n) | .id
+  ' | head -1)
+
+  if [[ -n "$EXISTING_ID" && "$EXISTING_ID" != "null" ]]; then
+    SKILL_DIRS_ARR+=("${skill_dir}")
+    SKILL_IDS_ARR+=("${EXISTING_ID}")
+    echo "↺ reused (${EXISTING_ID:0:8})"
+    continue
+  fi
+
+  # Create the skill with the SKILL.md body as content
+  skill_content=$(cat "$skill_md")
+  CREATE_OUT=$(multica skill create \
+    --name "$skill_name" \
+    --content "$skill_content" \
+    --description "$skill_desc" \
     --output json 2>&1) || {
       echo "FAILED"
-      echo "    Error: ${IMPORT_OUT}" >&2
+      echo "    Error: ${CREATE_OUT}" >&2
       exit 1
     }
-  SKILL_ID=$(echo "$IMPORT_OUT" | jq -r '.id')
-  SKILL_ID_BY_DIR["${skill_dir}"]="${SKILL_ID}"
+  SKILL_ID=$(echo "$CREATE_OUT" | jq -r '.id')
+
+  # Upload any non-SKILL.md files (templates/, scripts/, etc.) preserving relative paths
+  while IFS= read -r extra; do
+    [[ -z "$extra" ]] && continue
+    rel_path="${extra#${SKILLS_DIR}/${skill_dir}/}"
+    extra_content=$(cat "$extra")
+    multica skill files upsert "$SKILL_ID" \
+      --path "$rel_path" \
+      --content "$extra_content" >/dev/null 2>&1 || true
+  done < <(find "${SKILLS_DIR}/${skill_dir}" -type f ! -name 'SKILL.md' 2>/dev/null)
+
+  SKILL_DIRS_ARR+=("${skill_dir}")
+  SKILL_IDS_ARR+=("${SKILL_ID}")
   echo "✓ (${SKILL_ID:0:8})"
 done
 
-echo "    ✓ ${#SKILLS[@]} skills imported"
+echo "    ✓ ${#SKILLS[@]} skills created/reused"
+
+lookup_skill_id() {
+  local target="$1"
+  local i
+  for i in "${!SKILL_DIRS_ARR[@]}"; do
+    if [[ "${SKILL_DIRS_ARR[$i]}" == "$target" ]]; then
+      echo "${SKILL_IDS_ARR[$i]}"
+      return 0
+    fi
+  done
+}
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 5. Discover Claude Code runtime ID
@@ -198,15 +272,33 @@ extract_instructions() {
 # Helper: comma-separated skill IDs from skill-dir names
 ids_csv_for() {
   local result=""
+  local s id
   for s in "$@"; do
-    if [[ -n "${SKILL_ID_BY_DIR[${s}]:-}" ]]; then
-      result="${result}${SKILL_ID_BY_DIR[${s}]},"
+    id=$(lookup_skill_id "$s")
+    if [[ -n "$id" ]]; then
+      result="${result}${id},"
     fi
   done
   echo "${result%,}"
 }
 
-declare -A AGENT_ID_BY_NAME
+# Parallel arrays for agent name → id (macOS bash 3.2 lacks `declare -A`)
+AGENT_NAMES_ARR=()
+AGENT_IDS_ARR=()
+
+# Pre-fetch existing agents for idempotent re-runs
+EXISTING_AGENTS_JSON=$(multica agent list --output json 2>/dev/null || echo '[]')
+
+lookup_agent_id() {
+  local target="$1"
+  local i
+  for i in "${!AGENT_NAMES_ARR[@]}"; do
+    if [[ "${AGENT_NAMES_ARR[$i]}" == "$target" ]]; then
+      echo "${AGENT_IDS_ARR[$i]}"
+      return 0
+    fi
+  done
+}
 
 create_agent() {
   local name="$1"
@@ -226,24 +318,34 @@ create_agent() {
 
   printf "    %-16s (model: %-22s conc: %d) ... " "${name}" "${model}" "${max_conc}"
 
-  local AGENT_OUT
-  AGENT_OUT=$(multica agent create \
-    --name "${name}" \
-    --runtime-id "${RUNTIME_ID}" \
-    --model "${model}" \
-    --visibility "workspace" \
-    --max-concurrent-tasks "${max_conc}" \
-    --instructions "${instructions}" \
-    --output json 2>&1) || {
-      echo "FAILED"
-      echo "    Error: ${AGENT_OUT}" >&2
-      exit 1
-    }
-
+  # Idempotent: reuse if agent with this name already exists in workspace
   local agent_id
-  agent_id=$(echo "$AGENT_OUT" | jq -r '.id')
-  AGENT_ID_BY_NAME["${name}"]="${agent_id}"
-  echo "✓ (${agent_id:0:8})"
+  agent_id=$(echo "$EXISTING_AGENTS_JSON" | jq -r --arg n "$name" '
+    (.[]? // empty) | select(.name == $n) | .id
+  ' | head -1)
+
+  if [[ -n "$agent_id" && "$agent_id" != "null" ]]; then
+    echo "↺ reused (${agent_id:0:8})"
+  else
+    local AGENT_OUT
+    AGENT_OUT=$(multica agent create \
+      --name "${name}" \
+      --runtime-id "${RUNTIME_ID}" \
+      --model "${model}" \
+      --visibility "workspace" \
+      --max-concurrent-tasks "${max_conc}" \
+      --instructions "${instructions}" \
+      --output json 2>&1) || {
+        echo "FAILED"
+        echo "    Error: ${AGENT_OUT}" >&2
+        exit 1
+      }
+    agent_id=$(echo "$AGENT_OUT" | jq -r '.id')
+    echo "✓ (${agent_id:0:8})"
+  fi
+
+  AGENT_NAMES_ARR+=("${name}")
+  AGENT_IDS_ARR+=("${agent_id}")
 
   # Mount skills (replaces all assignments — set, not add)
   if [[ -n "${skills_csv}" ]]; then
@@ -271,7 +373,8 @@ echo "    ✓ 9 agents created"
 # ──────────────────────────────────────────────────────────────────────────────
 set_env_for_agent() {
   local agent_name="$1"; shift
-  local agent_id="${AGENT_ID_BY_NAME[$agent_name]:-}"
+  local agent_id
+  agent_id=$(lookup_agent_id "$agent_name")
   [[ -z "$agent_id" ]] && return 0
 
   # Build JSON object from key=value pairs
@@ -321,7 +424,7 @@ Project ID:   ${PROJECT_ID}
 Runtime ID:   ${RUNTIME_ID}
 
 Agents:
-$(for k in "${!AGENT_ID_BY_NAME[@]}"; do printf "  %-16s %s\n" "$k" "${AGENT_ID_BY_NAME[$k]}"; done | sort)
+$(for i in "${!AGENT_NAMES_ARR[@]}"; do printf "  %-16s %s\n" "${AGENT_NAMES_ARR[$i]}" "${AGENT_IDS_ARR[$i]}"; done | sort)
 
 Next steps:
 
