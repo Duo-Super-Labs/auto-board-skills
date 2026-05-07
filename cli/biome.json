@@ -36,6 +36,6 @@
     }
   },
   "files": {
-    "ignore": ["node_modules", "dist", "bin", "*.d.ts"]
+    "ignore": ["node_modules", "dist", "bin", "coverage", "*.d.ts"]
   }
 }
