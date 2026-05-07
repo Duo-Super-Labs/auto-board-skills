@@ -2,6 +2,16 @@
 
 Orchestration skills for the **auto-board** pipeline — agents simulating the operation of a software company on top of [Multica](https://github.com/multica-ai/multica) self-hosted.
 
+## 📚 Read these in order
+
+1. **[GOALS.md](GOALS.md)** — what we're building, why, how we'll know it works, decisions log
+2. **[PROCESS.md](PROCESS.md)** — end-to-end lifecycle of a User Story (16 phases, agents, recovery)
+3. **[TOPOLOGY.md](TOPOLOGY.md)** — where everything physically runs (WSL daemon = base, Mac = access)
+4. **[PROVISION.md](PROVISION.md)** — how to add a new product to the pipeline
+5. **[MULTICA-CLI-REFERENCE.md](MULTICA-CLI-REFERENCE.md)** — every command, flag, gap, workaround discovered against v0.2.26
+
+Then: individual `agents/*.md` and `0?-*/SKILL.md` for operational detail.
+
 ## What's here
 
 These skills are **process / orchestration** only. Stack expertise (how to write code in this stack) lives **inside each product repo** under `.claude/skills/` and `.claude/rules/`. This separation is intentional:
