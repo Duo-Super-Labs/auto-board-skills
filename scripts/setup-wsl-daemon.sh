@@ -13,7 +13,9 @@
 #   2. claude CLI is installed and on PATH (or symlinked into /usr/local/bin)
 #   3. multica is configured to point at the local self-host server
 #   4. Authenticated (uses provided PAT or prompts for one)
-#   5. Daemon is running
+#   5. auto-board-skills repo cloned/updated at $AUTO_BOARD_SKILLS_DIR
+#      (default $HOME/auto-board-skills) — agents reference scripts in it
+#   6. Daemon is running
 #
 # Usage (over SSH from the Mac):
 #   ssh renatoastra@desktop-76n2ggj 'bash -s' < setup-wsl-daemon.sh
@@ -113,8 +115,26 @@ else
   fi
 fi
 
-# ─── Step 5: Start daemon ────────────────────────────────────────────────────
-echo "==> Step 5/5: Starting daemon..."
+# ─── Step 5: Clone/update auto-board-skills (agents reference scripts here) ──
+echo "==> Step 5/6: Verifying auto-board-skills repo on WSL..."
+SKILLS_DIR="${AUTO_BOARD_SKILLS_DIR:-$HOME/auto-board-skills}"
+if [[ ! -d "$SKILLS_DIR/.git" ]]; then
+  echo "    Cloning auto-board-skills to $SKILLS_DIR ..."
+  if command -v gh >/dev/null 2>&1; then
+    gh repo clone Duo-Super-Labs/auto-board-skills "$SKILLS_DIR" 2>/dev/null \
+      || git clone https://github.com/Duo-Super-Labs/auto-board-skills.git "$SKILLS_DIR"
+  else
+    git clone https://github.com/Duo-Super-Labs/auto-board-skills.git "$SKILLS_DIR"
+  fi
+else
+  echo "    Pulling latest from main..."
+  ( cd "$SKILLS_DIR" && git pull --rebase --autostash 2>&1 | tail -3 )
+fi
+chmod +x "${SKILLS_DIR}/scripts/"*.sh 2>/dev/null || true
+echo "    ✓ ${SKILLS_DIR}"
+
+# ─── Step 6: Start daemon ────────────────────────────────────────────────────
+echo "==> Step 6/6: Starting daemon..."
 DAEMON_STATUS=$(multica daemon status 2>&1 || true)
 if echo "$DAEMON_STATUS" | grep -qi 'running'; then
   echo "    ✓ Daemon already running"

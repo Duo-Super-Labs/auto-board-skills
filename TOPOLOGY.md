@@ -11,8 +11,9 @@ This machine is **WSL2 Ubuntu running inside Windows**. Everything runs Unix-nat
 Components running here:
 - **Multica server** (Docker compose self-host) — REST + WebSocket on `:8080`, web UI on `:3000`, served as `https://desktop-76n2ggj.tailda7706.ts.net` via Tailscale
 - **Multica daemon** — polls server, claims tasks, executes agent CLIs
-- **Postgres** (Docker) — primary data store
-- **`claude` / `gemini` / `cursor` CLIs** — what the daemon spawns when an agent picks up a task
+- **Per-product Postgres + Minio + Mailpit Docker stacks** — one stack per product (e.g., `duozada_postgres`, `genebra_postgres`), namespaced via `COMPOSE_PROJECT_NAME` and port-shifted via `~/.auto-board-stacks/<slug>/docker-compose.override.yml`. Stack metadata managed by `~/auto-board-skills/scripts/product-stack.sh` (reads `port-registry.json`).
+- **`claude` / `gemini` / `cursor` CLIs** — what the daemon spawns when an agent picks up a task. `claude` lives at `~/.local/bin/claude`; `setup-wsl-daemon.sh` symlinks it into `/usr/local/bin` so non-interactive shells (the daemon) find it.
+- **`auto-board-skills` repo** at `~/auto-board-skills/` — agents reference scripts (especially `product-stack.sh`) and skills here. Auto-cloned and kept up-to-date by `setup-wsl-daemon.sh`.
 - **Agent workdirs** — `~/multica_workspaces/{ws}/{task_short_id}/workdir/`
 
 This is the **execution surface** of the entire auto-board pipeline.

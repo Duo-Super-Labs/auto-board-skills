@@ -46,6 +46,27 @@ DESIGN_SYSTEM_REPO="https://github.com/Duo-Super-Labs/ai-ui"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILLS_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REGISTRY_PATH="${SKILLS_DIR}/port-registry.json"
+
+# ─── Derive DATABASE_URL from port registry (overrides any env var) ─────────
+# The port registry is the single source of truth for per-product Docker
+# port allocation, so multiple products can run docker-compose simultaneously
+# on the same WSL host without colliding on container names + host ports.
+if [[ -f "$REGISTRY_PATH" ]]; then
+  REGISTRY_PORTS=$(jq --arg s "$PRODUCT_SLUG" '.products[$s] // empty' "$REGISTRY_PATH" 2>/dev/null || echo "")
+  if [[ -n "$REGISTRY_PORTS" && "$REGISTRY_PORTS" != "null" ]]; then
+    PRE_DB_URL="${DATABASE_URL:-}"
+    REGISTRY_POSTGRES_PORT=$(echo "$REGISTRY_PORTS" | jq -r '.postgres')
+    DATABASE_URL="postgresql://postgres:postgres@localhost:${REGISTRY_POSTGRES_PORT}/postgres"
+    export DATABASE_URL
+    if [[ -n "$PRE_DB_URL" && "$PRE_DB_URL" != "$DATABASE_URL" ]]; then
+      echo "    ⚠ Overriding env DATABASE_URL=${PRE_DB_URL} with port-registry value → ${DATABASE_URL}" >&2
+    fi
+  else
+    echo "    ⚠ Product '$PRODUCT_SLUG' not in port-registry.json — add it before running again." >&2
+    echo "      The script will use whatever DATABASE_URL you pass (or none), which may collide with other products." >&2
+  fi
+fi
 
 require() { command -v "$1" >/dev/null 2>&1 || { echo "❌ Missing: $1" >&2; exit 1; }; }
 require multica

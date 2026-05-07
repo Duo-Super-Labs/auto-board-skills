@@ -56,12 +56,31 @@ git pull --rebase
 git checkout -b be-DUO-12-14-bulk-print-procedure
 ```
 
-### 3. Bring up DB (if not already)
+### 3. Bring up DB (if not already) — via product-stack.sh wrapper
+
+⚠ **Do NOT run `docker compose up -d` directly.** The duo-admin template's
+docker-compose.yml has fixed container names (`duolabs_postgres`, etc.)
+and fixed host ports (5432, etc.) that collide with other products on the
+same WSL host. Instead use the `product-stack.sh` wrapper which applies a
+per-product docker-compose.override.yml from `port-registry.json`,
+namespaces containers via `COMPOSE_PROJECT_NAME`, and routes the right
+ports to the right products.
 
 ```bash
-docker compose up -d
+# Replace <product-slug> with the actual slug, e.g. duozada
+~/auto-board-skills/scripts/product-stack.sh up <product-slug> "$PWD"
+
+# Then migrate against the per-product database:
 pnpm --filter @duolabs/database migrate
 ```
+
+The wrapper reads `~/auto-board-skills/port-registry.json`, derives this
+product's port slot, generates `~/.auto-board-stacks/<slug>/{docker-compose.override.yml,.env}`
+on first run (idempotent), then boots the stack. Subsequent calls are no-ops
+if the stack is already up.
+
+`DATABASE_URL` is set on you via `--custom-env` at agent provisioning time,
+pointing to your product's port. Trust it; don't hardcode `localhost:5432`.
 
 ### 4. Red — write failing tests at every layer
 

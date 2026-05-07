@@ -2,6 +2,45 @@
 
 How to add a new product to the auto-board pipeline. Calibrated against multica CLI **v0.2.26**.
 
+## Per-product Docker stack isolation
+
+The `duo-admin` template's `docker-compose.yml` has fixed container names (`duolabs_postgres`, `duolabs_postgres_test`, `duolabs_minio`, `duolabs_mailpit`) and fixed host ports (5432, 5433, 9000, 9001, 1025, 8025). Two forks running `docker compose up -d` simultaneously would collide on container names AND ports.
+
+We solve this with `port-registry.json` + per-product `docker-compose.override.yml`:
+
+- **`port-registry.json`** at the repo root assigns each product a 10-port slot (offset 0 = base, offset 1 = base+10, etc.)
+- **`scripts/product-stack.sh`** runs on the WSL host. Generates `~/.auto-board-stacks/<slug>/{docker-compose.override.yml,.env}` from the registry. Boots the stack with `COMPOSE_PROJECT_NAME=<slug>` so containers/networks/volumes are namespaced.
+
+### Adding a new product to the registry
+
+```bash
+jq '.products.genebra = {
+  "offset": 1,
+  "postgres": 5442,
+  "postgres_test": 5443,
+  "minio_api": 9010,
+  "minio_console": 9011,
+  "mailpit_smtp": 1035,
+  "mailpit_ui": 8035
+} | ."$next_available_offset" = 2' port-registry.json > tmp && mv tmp port-registry.json
+```
+
+Pattern: each port = base + offset×10.
+
+The provision script auto-derives `DATABASE_URL` for each agent from this registry — you don't pass `DATABASE_URL` manually anymore (any env var is overridden by the registry value).
+
+### Booting/stopping a stack on the WSL host
+
+```bash
+# From inside the agent's workdir (after cloning the product repo):
+~/auto-board-skills/scripts/product-stack.sh up duozada "$PWD"
+~/auto-board-skills/scripts/product-stack.sh status duozada
+~/auto-board-skills/scripts/product-stack.sh down duozada "$PWD"      # preserves volumes
+~/auto-board-skills/scripts/product-stack.sh nuke duozada "$PWD"      # DESTRUCTIVE
+```
+
+Skills like `12-tdd-be/SKILL.md` reference this wrapper. **Agents must NEVER run `docker compose up -d` directly** — it would boot with the template's hardcoded container names and break inter-product isolation.
+
 ## Known CLI gaps (v0.2.26) — workarounds embedded in skills
 
 | Gap | Impact | Workaround |

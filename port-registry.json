@@ -1,0 +1,16 @@
+{
+  "$schema": "Per-product port allocation. Each product gets a unique 10-port slot to avoid host port collisions when multiple products run docker-compose simultaneously on the same WSL host.",
+  "$convention": "Add new products with the next available offset. Offset 0 = base (5432). Offset 1 = base+10 (5442). Reserved range: 5432-5532, 9000-9100, 1025-1125, 8025-8125.",
+  "products": {
+    "duozada": {
+      "offset": 0,
+      "postgres": 5432,
+      "postgres_test": 5433,
+      "minio_api": 9000,
+      "minio_console": 9001,
+      "mailpit_smtp": 1025,
+      "mailpit_ui": 8025
+    }
+  },
+  "$next_available_offset": 1
+}
