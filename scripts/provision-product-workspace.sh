@@ -386,15 +386,15 @@ create_agent() {
 # Universal skills (all 9 agents get these)
 UNIVERSAL=("01-read-product-context" "02-branch-conventions" "03-multica-handoff")
 
-create_agent "pm-grooming"   "claude-opus-4"   3 "${UNIVERSAL[@]}" "04-bootstrap-product" "05-grill-us" "06-product-planning"
-create_agent "pm-refiner"    "claude-opus-4"   3 "${UNIVERSAL[@]}" "07-refine-us"
-create_agent "designer"      "claude-sonnet-4" 3 "${UNIVERSAL[@]}" "08-design-sketch"
-create_agent "qa-planner"    "claude-sonnet-4" 3 "${UNIVERSAL[@]}" "09-bdd-writer"
-create_agent "task-breaker"  "claude-opus-4"   2 "${UNIVERSAL[@]}" "10-break-us"
-create_agent "fe-dev"        "claude-sonnet-4" 6 "${UNIVERSAL[@]}" "11-tdd-fe"
-create_agent "be-dev"        "claude-sonnet-4" 6 "${UNIVERSAL[@]}" "12-tdd-be"
-create_agent "code-reviewer" "claude-opus-4"   6 "${UNIVERSAL[@]}" "13-code-review"
-create_agent "qa-tester"     "claude-sonnet-4" 4 "${UNIVERSAL[@]}" "14-e2e-write" "14b-playwright-smoke"
+create_agent "pm-grooming"   "claude-opus-4-7"   3 "${UNIVERSAL[@]}" "04-bootstrap-product" "05-grill-us" "06-product-planning"
+create_agent "pm-refiner"    "claude-opus-4-7"   3 "${UNIVERSAL[@]}" "07-refine-us"
+create_agent "designer"      "claude-sonnet-4-7" 3 "${UNIVERSAL[@]}" "08-design-sketch"
+create_agent "qa-planner"    "claude-sonnet-4-7" 3 "${UNIVERSAL[@]}" "09-bdd-writer"
+create_agent "task-breaker"  "claude-opus-4-7"   2 "${UNIVERSAL[@]}" "10-break-us"
+create_agent "fe-dev"        "claude-sonnet-4-7" 6 "${UNIVERSAL[@]}" "11-tdd-fe"
+create_agent "be-dev"        "claude-sonnet-4-7" 6 "${UNIVERSAL[@]}" "12-tdd-be"
+create_agent "code-reviewer" "claude-opus-4-7"   6 "${UNIVERSAL[@]}" "13-code-review"
+create_agent "qa-tester"     "claude-sonnet-4-7" 4 "${UNIVERSAL[@]}" "14-e2e-write" "14b-playwright-smoke"
 
 echo "    ✓ 9 agents created"
 

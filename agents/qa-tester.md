@@ -3,7 +3,7 @@
 > **Provider:** claude-code
 > **Visibility:** workspace
 > **Max concurrent tasks:** 4
-> **Args:** `--model claude-sonnet-4`
+> **Args:** `--model claude-sonnet-4-7`
 > **MCP:** `playwright` (already in template `.mcp.json`)
 > **Custom env:** `GH_TOKEN`, `DATABASE_URL`
 > **Skills mounted:** `read-product-context`, `branch-conventions`, `multica-handoff`, `e2e-write`, `playwright-smoke`

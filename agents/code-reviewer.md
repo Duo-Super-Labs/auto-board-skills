@@ -3,7 +3,7 @@
 > **Provider:** claude-code
 > **Visibility:** workspace
 > **Max concurrent tasks:** 6
-> **Args:** `--model claude-opus-4`
+> **Args:** `--model claude-opus-4-7`
 > **MCP:** —
 > **Custom env:** `GH_TOKEN`
 > **Skills mounted:** `read-product-context`, `branch-conventions`, `multica-handoff`, `code-review`

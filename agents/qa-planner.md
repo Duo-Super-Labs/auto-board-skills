@@ -3,7 +3,7 @@
 > **Provider:** claude-code
 > **Visibility:** workspace
 > **Max concurrent tasks:** 3
-> **Args:** `--model claude-sonnet-4`
+> **Args:** `--model claude-sonnet-4-7`
 > **MCP:** —
 > **Custom env:** —
 > **Skills mounted:** `read-product-context`, `multica-handoff`, `bdd-writer`
