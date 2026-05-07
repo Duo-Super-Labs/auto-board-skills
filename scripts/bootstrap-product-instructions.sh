@@ -66,7 +66,10 @@ SERVER_URL=$(jq -r '.server_url // "http://localhost:3000"' ~/.multica/config.js
 APP_URL="${SERVER_URL%/api}"
 [[ "$APP_URL" == "$SERVER_URL" ]] && APP_URL="$SERVER_URL"
 
-CHAT_URL="${APP_URL}/${SLUG}/chat"
+# Chat in Multica v0.2.x is NOT a route — it's a floating FAB overlay
+# accessible from any workspace page. We open the issues page and tell
+# the user to click the chat icon to launch the chat window.
+WORKSPACE_URL="${APP_URL}/${SLUG}/issues"
 
 # Compose the first message.
 # Avoid FIRST_MSG=$(cat <<EOF ... EOF) — heredoc bodies with parens like
@@ -101,14 +104,19 @@ cat <<EOF
 Bootstrap product — copy-paste setup
 ==========================================================
 
-The multica CLI v0.2.26 does NOT have a 'chat' command. Chat is UI-only.
-Open the chat in your browser, select the 'pm-grooming' agent, and paste
-the message below as your first message.
+The multica CLI v0.2.26 does NOT have a 'chat' command. Chat is also NOT
+a route — it's a floating FAB overlay accessible from any workspace page.
+
+Steps:
+  1. Open the workspace URL below
+  2. Click the chat icon (FAB) — usually bottom-right
+  3. Pick agent 'pm-grooming' from the dropdown
+  4. Paste the message below as the first message
 
 ──────────────────────────────────────────────────────────
-Chat URL:    ${CHAT_URL}
-Workspace:   ${SLUG} (${WORKSPACE_ID})
-Agent:       pm-grooming
+Workspace URL: ${WORKSPACE_URL}
+Workspace:     ${SLUG} (${WORKSPACE_ID})
+Agent:         pm-grooming
 ──────────────────────────────────────────────────────────
 
 First message (copy from the next line up to the next divider):
@@ -132,7 +140,7 @@ EOF
 
 # Best-effort open
 if command -v open >/dev/null 2>&1; then
-  open "${CHAT_URL}" 2>/dev/null || true
+  open "${WORKSPACE_URL}" 2>/dev/null || true
 elif command -v xdg-open >/dev/null 2>&1; then
-  xdg-open "${CHAT_URL}" 2>/dev/null || true
+  xdg-open "${WORKSPACE_URL}" 2>/dev/null || true
 fi
