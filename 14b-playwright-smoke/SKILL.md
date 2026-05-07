@@ -5,7 +5,7 @@ description: Manual smoke test via Playwright MCP — spawns a browser, walks th
 
 # Playwright smoke
 
-Used by `qa-tester` agent during `phase:test`, AFTER `e2e-write` has produced and run the spec.
+Used by `qa-tester` agent during `phase=test`, AFTER `e2e-write` has produced and run the spec.
 
 ## Why
 
@@ -111,7 +111,7 @@ kill $DEV_PID 2>/dev/null
 
 ## When smoke reveals a real bug
 
-Same flow as `e2e-write` step 6 — create a fix child issue, move parent back to `phase:dev`. Smoke findings carry MORE weight than spec failures because they catch what automation misses (visual, UX).
+Same flow as `e2e-write` step 6 — create a fix child issue, move parent back to `phase=dev`. Smoke findings carry MORE weight than spec failures because they catch what automation misses (visual, UX).
 
 ## Hard rules
 

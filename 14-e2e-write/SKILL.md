@@ -5,11 +5,11 @@ description: Test phase — writes Playwright E2E spec from BDD scenarios with 1
 
 # E2E write
 
-Used by `qa-tester` agent during `phase:test`.
+Used by `qa-tester` agent during `phase=test`.
 
 ## Trigger
 
-QA child issue (created by `task-breaker` with `domain:qa-e2e`) becomes unblocked when all sibling FE/BE children reach `phase:done` — the parent US then moves to `phase:rt-test` and you (qa-tester) are reassigned.
+QA child issue (created by `task-breaker` with `domain=qa-e2e`) becomes unblocked when all sibling FE/BE children reach `phase=done` — the parent US then moves to `phase=rt-test` and you (qa-tester) are reassigned.
 
 By this point:
 - All FE/BE children's PRs are merged into `us-<N>` branch
@@ -153,8 +153,8 @@ Create a fix child issue on the parent US:
 multica issue create \
   --title "Fix: <scenario name> failing" \
   --parent <us-id> \
-  --label "domain:fe" \  # or domain:be depending on root cause
-  --label "phase:rt-dev" \
+  --description-stdin \  # description first line carries: <!-- multica-board-state: phase=rt-dev domain=fe --> (or domain=be)
+  --status todo \
   --description "$(cat <<EOF
 ## Scope
 E2E scenario \`<scenario-name>\` is failing. Root cause appears to be in <component/file>.
@@ -177,12 +177,12 @@ EOF
 
 # Move parent BACK to dev
 multica issue update <parent-us-id> \
-  --remove-label "phase:test" \
-  --add-label "phase:dev" \
+  --remove-label "phase=test" \
+  --add-label "phase=dev" \
   --status in_progress
 
 # Comment on parent
-multica issue comment <parent-us-id> "🚧 Found bug, opened DUO-XX for fix. Parent moved back to phase:dev."
+multica issue comment <parent-us-id> "🚧 Found bug, opened DUO-XX for fix. Parent moved back to phase=dev."
 ```
 
 The fix child flows back through fe-dev → reviewer → here. Do NOT fix yourself.
@@ -221,8 +221,8 @@ gh pr merge --squash --delete-branch
 
 ```bash
 multica issue update <parent-us-id> \
-  --remove-label "phase:test" \
-  --add-label "phase:homologation" \
+  --remove-label "phase=test" \
+  --add-label "phase=homologation" \
   --status in_review \
   --assignee <human-handle>  # YOU, Renato
 
@@ -254,4 +254,4 @@ EOF
 
 ## End
 
-Parent at `phase:homologation`, assigned to human. You're done with this US.
+Parent at `phase=homologation`, assigned to human. You're done with this US.

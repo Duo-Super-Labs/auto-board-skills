@@ -5,7 +5,7 @@ description: Refinement phase — orchestrates multi-agent input via @-mentions 
 
 # Refine US
 
-Used by `pm-refiner` agent during `phase:refinement`.
+Used by `pm-refiner` agent during `phase=refinement`.
 
 ## Why this is the most delicate phase
 
@@ -13,7 +13,7 @@ Refinement is the single moment where ALL specialists weigh in before code is wr
 
 ## Trigger
 
-Issue with `phase:refinement` label, assigned to you (`pm-refiner`).
+Issue with `phase=refinement` label, assigned to you (`pm-refiner`).
 
 By this point the issue has:
 - US (from grill-us)
@@ -124,7 +124,7 @@ OR
 
 ### 6. Handoff (only if verdict is ✅)
 
-`multica-handoff` → `phase:rt-dev`, reassign to `task-breaker`.
+`multica-handoff` → `phase=rt-dev`, reassign to `task-breaker`.
 
 If verdict is 🚧, do NOT handoff. Instead reassign to whichever upstream agent needs to revise (designer if sketch is wrong, qa-planner if BDD is wrong, pm-grooming if AC is wrong). They re-do their phase, then send back.
 

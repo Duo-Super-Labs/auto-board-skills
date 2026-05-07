@@ -1,28 +1,28 @@
 ---
 name: code-review
-description: Multi-domain code review router. Detects domain:* label on the issue and applies the matching rule set (FE / BE / E2E). Reuses local .claude/agents/code-reviewer.md and .claude/rules/. Outputs verdict APPROVE or CHANGES REQUESTED.
+description: Multi-domain code review router. Detects domain=* label on the issue and applies the matching rule set (FE / BE / E2E). Reuses local .claude/agents/code-reviewer.md and .claude/rules/. Outputs verdict APPROVE or CHANGES REQUESTED.
 ---
 
 # Code review
 
-Used by `code-reviewer` agent during `phase:rt-code-review` and `phase:code-review`.
+Used by `code-reviewer` agent during `phase=rt-code-review` and `phase=code-review`.
 
 ## Trigger
 
-Child issue with `phase:rt-code-review` label and an open PR (linked in PR body or auto-detected via branch name).
+Child issue with `phase=rt-code-review` label and an open PR (linked in PR body or auto-detected via branch name).
 
 ## Routing by domain
 
 ```bash
 # Detect domain from labels
-multica issue view <id> --json labels | jq -r '.labels[] | select(startswith("domain:")) | .'
+multica issue view <id> --json labels | jq -r '.labels[] | select(startswith("domain=")) | .'
 ```
 
-| `domain:*` | Rule sets to apply |
+| `domain=*` | Rule sets to apply |
 |---|---|
-| `domain:fe` | `.claude/skills/frontend-recipe/`, `.claude/rules/ui-and-styling.mdc`, `.claude/rules/syntax-and-formatting.mdc`, `.claude/rules/typescript-usage.mdc` |
-| `domain:be` | `.claude/skills/api-recipe/`, `.claude/skills/db-recipe/`, `.claude/skills/orpc-contract-first/`, `.claude/rules/api-architecture.mdc`, `.claude/rules/database-patterns.mdc`, `.claude/rules/key-principles.mdc` |
-| `domain:qa-e2e` | `apps/web/tests/fixtures.ts`, `.claude/rules/testing-architecture.mdc`, CLAUDE.md "E2E conventions" |
+| `domain=fe` | `.claude/skills/frontend-recipe/`, `.claude/rules/ui-and-styling.mdc`, `.claude/rules/syntax-and-formatting.mdc`, `.claude/rules/typescript-usage.mdc` |
+| `domain=be` | `.claude/skills/api-recipe/`, `.claude/skills/db-recipe/`, `.claude/skills/orpc-contract-first/`, `.claude/rules/api-architecture.mdc`, `.claude/rules/database-patterns.mdc`, `.claude/rules/key-principles.mdc` |
+| `domain=qa-e2e` | `apps/web/tests/fixtures.ts`, `.claude/rules/testing-architecture.mdc`, CLAUDE.md "E2E conventions" |
 
 Always also apply universal rules: `.claude/rules/naming-coventions.mdc`, `.claude/rules/performance.mdc`, `CLAUDE.md` "NEVER DO" list.
 
@@ -53,7 +53,7 @@ multica issue view <parent-us-id> --include comments  # for AC + BDD
 
 ### 4. Apply rule set per domain
 
-Reuse the local agent: `.claude/agents/code-reviewer.md` is the existing template reviewer. Read it as your base. Then layer per-domain:
+Reuse the local agent: `.claude/agents/code-reviewer.md` is the existing template reviewer. Read it as your base. Then layer per-domain=
 
 #### Universal checks (every domain)
 
@@ -66,7 +66,7 @@ Reuse the local agent: `.claude/agents/code-reviewer.md` is the existing templat
 - [ ] No barrel `index.ts` inside `packages/` subdirectories
 - [ ] No new package created without 3+ apps needing it (per CLAUDE.md)
 
-#### `domain:fe` checks
+#### `domain=fe` checks
 
 - [ ] Component lives in `modules/<feature>/components/`
 - [ ] `api.ts` owns `invalidateQueries` (not the component)
@@ -83,7 +83,7 @@ Reuse the local agent: `.claude/agents/code-reviewer.md` is the existing templat
 - [ ] No cross-module imports inside `modules/admin/`
 - [ ] Components map to `@duolabs/ui` — no parallel ones built
 
-#### `domain:be` checks
+#### `domain=be` checks
 
 - [ ] 5-Layer flow respected (no skipping)
 - [ ] Layer 1 (schema) — uses `pgTable`, FKs to `organization` where multi-tenant
@@ -100,7 +100,7 @@ Reuse the local agent: `.claude/agents/code-reviewer.md` is the existing templat
 - [ ] If new endpoint: tenant isolation test included
 - [ ] Migration file present and applied locally without errors
 
-#### `domain:qa-e2e` checks
+#### `domain=qa-e2e` checks
 
 - [ ] Spec lives in `apps/web/tests/e2e/admin/<feature>/`
 - [ ] Imports `test, expect` from `../../fixtures` (NOT `@playwright/test`)
@@ -123,7 +123,7 @@ For each finding:
 ```markdown
 ## Review v1 — <APPROVE | CHANGES REQUESTED>
 
-PR: #<num>  •  Domain: `domain:fe`  •  Diff: +<N> -<N> across <K> files
+PR: #<num>  •  Domain: `domain=fe`  •  Diff: +<N> -<N> across <K> files
 
 ### 🚨 Blockers
 - `apps/web/modules/admin/non-conformities/components/BulkPrintButton.tsx:42` — `console.log` left in. Remove (or use `@duolabs/logs`).
@@ -151,29 +151,30 @@ OR
 ### 7. Trigger fix or close
 
 **If CHANGES REQUESTED:**
-- Card stays at `phase:code-review` (do NOT handoff)
+- Card stays at `phase=code-review` (do NOT handoff)
 - Comment includes `@fe-dev` (or `@be-dev`) to trigger fix task on the same agent
 - They fix and re-comment when done; you re-review (Review v2 in a new comment)
 
 **If APPROVE:**
-- Run `multica-handoff` → `phase:done` for the child
+- Run `multica-handoff` → `phase=done` for the child
 - Reassign back to original dev (`fe-dev` or `be-dev`) — they merge the PR
 - Comment: `Approved. @<dev> please squash-merge.`
 
 ### 8. Watch for last-sibling
 
-After child merges and reaches `phase:done`, check siblings:
+After child merges and reaches `phase=done`, check siblings:
 
 ```bash
-multica issue list --parent <us-id> --label "domain:" --not-label "phase:done"
+multica issue list --parent <us-id> --output json \
+  | jq '[.[] | select(.description | test("phase=done") | not)]'
 ```
 
-If empty, the parent US is ready for `phase:rt-test`. Update the parent:
+If empty, the parent US is ready for `phase=rt-test`. Update the parent:
 
 ```bash
 multica issue update <us-id> \
-  --remove-label "phase:dev" \
-  --add-label "phase:rt-test" \
+  --remove-label "phase=dev" \
+  --add-label "phase=rt-test" \
   --status in_review \
   --assignee qa-tester
 ```

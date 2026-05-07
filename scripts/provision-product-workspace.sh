@@ -2,25 +2,34 @@
 #
 # provision-product-workspace.sh
 # -----------------------------------------------------------------------------
-# Creates a Multica workspace for a new product, imports all 14 skills from
-# auto-board-skills repo, and creates the 9 agents with their instructions.
+# Provisions a Multica workspace for a new product:
+#   1. Validates the workspace exists (created via UI — multica CLI doesn't
+#      support `workspace create` as of v0.2.26)
+#   2. (Optional) Sets workspace context from a vision summary file
+#   3. Creates the MVP project with the product repo + design system attached
+#   4. Imports all 15 skills from auto-board-skills repo
+#   5. Discovers the Claude Code runtime ID
+#   6. Creates the 9 agents with model, instructions, max_concurrent_tasks
+#   7. Mounts skills on each agent (`agent skills set`)
+#   8. Sets custom env (GH_TOKEN, DATABASE_URL) on relevant agents via stdin
 #
-# Run AFTER you've forked Duo-Super-Labs/admin to a new product repo
-# (e.g., Duo-Super-Labs/duozada). Run BEFORE you start the bootstrap-product
-# chat session.
+# Calibrated against multica CLI v0.2.26.
 #
 # Prerequisites:
 #   - multica CLI installed and authenticated (`multica auth status` returns OK)
-#   - daemon running (`multica daemon status` returns OK)
-#   - claude CLI on PATH (the daemon detects it)
-#   - GH_TOKEN env var set (PAT scoped to the Duo-Super-Labs org)
+#   - Local self-host server reachable (Tailscale up if applicable)
+#   - daemon running (`multica daemon status`) with `claude` CLI detected
+#   - Workspace already created in UI (e.g. `duozada`)
+#   - GH_TOKEN env var set (PAT scoped to Duo-Super-Labs org)
+#   - DATABASE_URL env var set (local Docker Postgres URL)
 #   - jq, gh
 #
 # Usage:
 #   ./provision-product-workspace.sh <product-slug> <repo-url> [vision-file]
 #
 # Example:
-#   ./provision-product-workspace.sh duozada \
+#   GH_TOKEN=ghp_... DATABASE_URL=postgres://... \
+#     ./provision-product-workspace.sh duozada \
 #       https://github.com/Duo-Super-Labs/duozada \
 #       /tmp/duozada-vision.md
 # -----------------------------------------------------------------------------
@@ -33,79 +42,87 @@ VISION_FILE="${3:-}"
 
 SKILLS_REPO="https://github.com/Duo-Super-Labs/auto-board-skills"
 SKILLS_BRANCH="main"
+DESIGN_SYSTEM_REPO="https://github.com/Duo-Super-Labs/ai-ui"
 
-# Cross-platform: where this script lives (auto-board-skills repo locally)
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-SKILLS_DIR="$( cd "${SCRIPT_DIR}/.." && pwd )"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILLS_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-require() {
-  command -v "$1" >/dev/null 2>&1 || { echo "❌ Missing: $1" >&2; exit 1; }
-}
-
+require() { command -v "$1" >/dev/null 2>&1 || { echo "❌ Missing: $1" >&2; exit 1; }; }
 require multica
-require gh
 require jq
 
 echo "==> Provisioning workspace for product: ${PRODUCT_SLUG}"
 
-# Sanity checks
+# ──────────────────────────────────────────────────────────────────────────────
+# 0. Sanity
+# ──────────────────────────────────────────────────────────────────────────────
 echo "==> Checking multica auth..."
-multica auth status > /dev/null
+multica auth status >/dev/null 2>&1 || { echo "❌ multica not authenticated. Run: multica login"; exit 1; }
 
 echo "==> Checking multica daemon..."
-multica daemon status > /dev/null
-
-# 1. Create the workspace
-echo "==> Creating workspace..."
-WORKSPACE_OUT=$(multica workspace create \
-  --name "${PRODUCT_SLUG}" \
-  --slug "${PRODUCT_SLUG}" \
-  --output json)
-
-WORKSPACE_ID=$(echo "${WORKSPACE_OUT}" | jq -r '.id')
-echo "    ✓ Workspace created: ${WORKSPACE_ID}"
-
-# 2. Set workspace context (vision summary if provided)
-if [[ -n "${VISION_FILE}" && -f "${VISION_FILE}" ]]; then
-  echo "==> Setting workspace context from ${VISION_FILE}..."
-  multica workspace update "${WORKSPACE_ID}" \
-    --context-file "${VISION_FILE}"
-  echo "    ✓ Workspace context set (≤500 words recommended)"
-else
-  echo "    ⚠ No vision file provided. Set workspace context later in Settings."
+DAEMON_STATUS=$(multica daemon status 2>&1 || true)
+if echo "$DAEMON_STATUS" | grep -qi 'stopped'; then
+  echo "❌ Daemon is stopped. Start it: multica daemon start"
+  exit 1
 fi
 
-# 3. Whitelist the product repo
-echo "==> Whitelisting repo: ${PRODUCT_REPO}..."
-multica workspace repo add "${WORKSPACE_ID}" "${PRODUCT_REPO}"
+# ──────────────────────────────────────────────────────────────────────────────
+# 1. Resolve workspace ID by slug (workspace must already exist via UI)
+# ──────────────────────────────────────────────────────────────────────────────
+echo "==> Resolving workspace ID for slug '${PRODUCT_SLUG}'..."
+WORKSPACE_JSON=$(multica workspace list --output json)
+WORKSPACE_ID=$(echo "$WORKSPACE_JSON" | jq -r --arg slug "$PRODUCT_SLUG" '
+  (.[]? // empty) | select(.slug == $slug or .name == $slug) | .id
+' | head -1)
 
-# Also whitelist the design system + admin template
-multica workspace repo add "${WORKSPACE_ID}" "https://github.com/Duo-Super-Labs/ai-ui"     # design system (read-only)
-multica workspace repo add "${WORKSPACE_ID}" "https://github.com/Duo-Super-Labs/admin"     # template (read-only reference)
+if [[ -z "$WORKSPACE_ID" || "$WORKSPACE_ID" == "null" ]]; then
+  echo ""
+  echo "❌ Workspace '${PRODUCT_SLUG}' not found."
+  echo ""
+  echo "   The multica CLI v0.2.26 does NOT support 'workspace create'."
+  echo "   Please create it via the UI first:"
+  echo "     1. Open http://localhost:3000 (or your self-host URL)"
+  echo "     2. Click '+ New Workspace'"
+  echo "     3. Use slug: ${PRODUCT_SLUG}"
+  echo ""
+  echo "   Then re-run this script."
+  exit 1
+fi
 
-echo "    ✓ Repos whitelisted"
+echo "    ✓ Workspace ID: ${WORKSPACE_ID}"
+export MULTICA_WORKSPACE_ID="$WORKSPACE_ID"
 
-# 4. Create a default Project for the product
-echo "==> Creating default Project..."
+# ──────────────────────────────────────────────────────────────────────────────
+# 2. (Optional) Set workspace context
+# ──────────────────────────────────────────────────────────────────────────────
+if [[ -n "${VISION_FILE}" && -f "${VISION_FILE}" ]]; then
+  echo "==> Setting workspace context from ${VISION_FILE}..."
+  multica workspace update "${WORKSPACE_ID}" --context-stdin < "${VISION_FILE}" >/dev/null
+  echo "    ✓ Workspace context set"
+else
+  echo "    ⚠ No vision file provided. Set workspace context later in Settings if desired."
+fi
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 3. Create MVP project with repos attached as resources
+# ──────────────────────────────────────────────────────────────────────────────
+echo "==> Creating 'MVP' project with repos..."
 PROJECT_OUT=$(multica project create \
-  --workspace "${WORKSPACE_ID}" \
-  --name "MVP" \
-  --description "Minimum viable product slice" \
+  --title "MVP" \
+  --description "Minimum viable product slice — auto-board pipeline" \
   --status "in_progress" \
+  --repo "${PRODUCT_REPO}" \
+  --repo "${DESIGN_SYSTEM_REPO}" \
   --output json)
 
-PROJECT_ID=$(echo "${PROJECT_OUT}" | jq -r '.id')
+PROJECT_ID=$(echo "$PROJECT_OUT" | jq -r '.id')
+echo "    ✓ Project created: ${PROJECT_ID}"
+echo "    ✓ Repos attached: ${PRODUCT_REPO}, ${DESIGN_SYSTEM_REPO}"
 
-# Attach the product repo as a Project Resource
-multica project resource add "${PROJECT_ID}" \
-  --type github_repo \
-  --url "${PRODUCT_REPO}" \
-  --name "${PRODUCT_SLUG}"
-
-echo "    ✓ Project created with repo resource"
-
-# 5. Import the 14 skills
-echo "==> Importing 14 skills from ${SKILLS_REPO}..."
+# ──────────────────────────────────────────────────────────────────────────────
+# 4. Import 15 skills (in stable order)
+# ──────────────────────────────────────────────────────────────────────────────
+echo "==> Importing skills from ${SKILLS_REPO}..."
 
 SKILLS=(
   "01-read-product-context"
@@ -128,22 +145,58 @@ SKILLS=(
 declare -A SKILL_ID_BY_DIR
 
 for skill_dir in "${SKILLS[@]}"; do
-  echo "    importing ${skill_dir}..."
+  printf "    importing %-28s ... " "${skill_dir}"
   IMPORT_OUT=$(multica skill import \
-    --workspace "${WORKSPACE_ID}" \
     --url "${SKILLS_REPO}/tree/${SKILLS_BRANCH}/${skill_dir}" \
-    --output json)
-  SKILL_ID=$(echo "${IMPORT_OUT}" | jq -r '.id')
+    --output json 2>&1) || {
+      echo "FAILED"
+      echo "    Error: ${IMPORT_OUT}" >&2
+      exit 1
+    }
+  SKILL_ID=$(echo "$IMPORT_OUT" | jq -r '.id')
   SKILL_ID_BY_DIR["${skill_dir}"]="${SKILL_ID}"
+  echo "✓ (${SKILL_ID:0:8})"
 done
 
-echo "    ✓ 15 skills imported"  # 14b counts as separate file
+echo "    ✓ ${#SKILLS[@]} skills imported"
 
-# 6. Create the 9 agents
+# ──────────────────────────────────────────────────────────────────────────────
+# 5. Discover Claude Code runtime ID
+# ──────────────────────────────────────────────────────────────────────────────
+echo "==> Discovering Claude Code runtime..."
+RUNTIME_JSON=$(multica runtime list --output json)
+RUNTIME_ID=$(echo "$RUNTIME_JSON" | jq -r '
+  (.[]? // empty) | select(
+    (.provider // "" | ascii_downcase | contains("claude")) or
+    (.name // "" | ascii_downcase | contains("claude"))
+  ) | .id
+' | head -1)
+
+if [[ -z "$RUNTIME_ID" || "$RUNTIME_ID" == "null" ]]; then
+  echo "❌ No Claude Code runtime found. Available runtimes:"
+  echo "$RUNTIME_JSON" | jq -r '.[]? | "  - \(.id) (\(.provider // "?"))"'
+  echo ""
+  echo "   Make sure 'claude' CLI is on PATH and the daemon detected it."
+  echo "   Restart the daemon: multica daemon stop && multica daemon start"
+  exit 1
+fi
+
+echo "    ✓ Runtime ID: ${RUNTIME_ID}"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 6. Create 9 agents
+# ──────────────────────────────────────────────────────────────────────────────
 echo "==> Creating 9 agents..."
 
-# Helper: resolve skill IDs from list of skill-dir names
-ids_for() {
+# Helper: extract instructions from agents/<name>.md (text inside the
+# triple-backtick code block — that's what gets pasted into Multica)
+extract_instructions() {
+  local file="$1"
+  awk '/^```/{f=!f;next} f' "$file"
+}
+
+# Helper: comma-separated skill IDs from skill-dir names
+ids_csv_for() {
   local result=""
   for s in "$@"; do
     if [[ -n "${SKILL_ID_BY_DIR[${s}]:-}" ]]; then
@@ -153,75 +206,135 @@ ids_for() {
   echo "${result%,}"
 }
 
+declare -A AGENT_ID_BY_NAME
+
 create_agent() {
-  local name="$1" model="$2" max_conc="$3" instructions_file="$4"
-  shift 4
+  local name="$1"
+  local model="$2"
+  local max_conc="$3"
+  local instructions_file="${SKILLS_DIR}/agents/${name}.md"
+  shift 3
   local skills_csv
-  skills_csv=$(ids_for "$@")
+  skills_csv=$(ids_csv_for "$@")
 
-  echo "    creating ${name} (model: ${model}, ${max_conc} concurrent)..."
+  local instructions
+  instructions=$(extract_instructions "$instructions_file")
+  if [[ -z "$instructions" ]]; then
+    echo "❌ Empty instructions extracted from ${instructions_file}" >&2
+    exit 1
+  fi
 
-  multica agent create \
-    --workspace "${WORKSPACE_ID}" \
+  printf "    %-16s (model: %-22s conc: %d) ... " "${name}" "${model}" "${max_conc}"
+
+  local AGENT_OUT
+  AGENT_OUT=$(multica agent create \
     --name "${name}" \
-    --provider claude-code \
-    --visibility workspace \
+    --runtime-id "${RUNTIME_ID}" \
+    --model "${model}" \
+    --visibility "workspace" \
     --max-concurrent-tasks "${max_conc}" \
-    --args "--model ${model}" \
-    --instructions-file "${instructions_file}" \
-    --skills "${skills_csv}" \
-    > /dev/null
+    --instructions "${instructions}" \
+    --output json 2>&1) || {
+      echo "FAILED"
+      echo "    Error: ${AGENT_OUT}" >&2
+      exit 1
+    }
 
-  echo "      ✓ ${name}"
+  local agent_id
+  agent_id=$(echo "$AGENT_OUT" | jq -r '.id')
+  AGENT_ID_BY_NAME["${name}"]="${agent_id}"
+  echo "✓ (${agent_id:0:8})"
+
+  # Mount skills (replaces all assignments — set, not add)
+  if [[ -n "${skills_csv}" ]]; then
+    multica agent skills set "${agent_id}" --skill-ids "${skills_csv}" >/dev/null
+  fi
 }
 
-# Universal skills used by all 9
+# Universal skills (all 9 agents get these)
 UNIVERSAL=("01-read-product-context" "02-branch-conventions" "03-multica-handoff")
 
-create_agent "pm-grooming"    "claude-opus-4"   3 "${SKILLS_DIR}/agents/pm-grooming.md"   "${UNIVERSAL[@]}" "04-bootstrap-product" "05-grill-us" "06-product-planning"
-create_agent "pm-refiner"     "claude-opus-4"   3 "${SKILLS_DIR}/agents/pm-refiner.md"    "${UNIVERSAL[@]}" "07-refine-us"
-create_agent "designer"       "claude-sonnet-4" 3 "${SKILLS_DIR}/agents/designer.md"      "${UNIVERSAL[@]}" "08-design-sketch"
-create_agent "qa-planner"     "claude-sonnet-4" 3 "${SKILLS_DIR}/agents/qa-planner.md"    "${UNIVERSAL[@]}" "09-bdd-writer"
-create_agent "task-breaker"   "claude-opus-4"   2 "${SKILLS_DIR}/agents/task-breaker.md"  "${UNIVERSAL[@]}" "10-break-us"
-create_agent "fe-dev"         "claude-sonnet-4" 6 "${SKILLS_DIR}/agents/fe-dev.md"        "${UNIVERSAL[@]}" "11-tdd-fe"
-create_agent "be-dev"         "claude-sonnet-4" 6 "${SKILLS_DIR}/agents/be-dev.md"        "${UNIVERSAL[@]}" "12-tdd-be"
-create_agent "code-reviewer"  "claude-opus-4"   6 "${SKILLS_DIR}/agents/code-reviewer.md" "${UNIVERSAL[@]}" "13-code-review"
-create_agent "qa-tester"      "claude-sonnet-4" 4 "${SKILLS_DIR}/agents/qa-tester.md"     "${UNIVERSAL[@]}" "14-e2e-write" "14b-playwright-smoke"
+create_agent "pm-grooming"   "claude-opus-4"   3 "${UNIVERSAL[@]}" "04-bootstrap-product" "05-grill-us" "06-product-planning"
+create_agent "pm-refiner"    "claude-opus-4"   3 "${UNIVERSAL[@]}" "07-refine-us"
+create_agent "designer"      "claude-sonnet-4" 3 "${UNIVERSAL[@]}" "08-design-sketch"
+create_agent "qa-planner"    "claude-sonnet-4" 3 "${UNIVERSAL[@]}" "09-bdd-writer"
+create_agent "task-breaker"  "claude-opus-4"   2 "${UNIVERSAL[@]}" "10-break-us"
+create_agent "fe-dev"        "claude-sonnet-4" 6 "${UNIVERSAL[@]}" "11-tdd-fe"
+create_agent "be-dev"        "claude-sonnet-4" 6 "${UNIVERSAL[@]}" "12-tdd-be"
+create_agent "code-reviewer" "claude-opus-4"   6 "${UNIVERSAL[@]}" "13-code-review"
+create_agent "qa-tester"     "claude-sonnet-4" 4 "${UNIVERSAL[@]}" "14-e2e-write" "14b-playwright-smoke"
 
-# 7. Custom env (GH_TOKEN, DATABASE_URL) — set per-agent
-echo "==> Setting custom env per agent..."
-if [[ -n "${GH_TOKEN:-}" ]]; then
-  for agent in task-breaker fe-dev be-dev code-reviewer qa-tester; do
-    multica agent env set "${WORKSPACE_ID}" "${agent}" GH_TOKEN "${GH_TOKEN}"
+echo "    ✓ 9 agents created"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 7. Set custom env on relevant agents via stdin (avoids shell history leakage)
+# ──────────────────────────────────────────────────────────────────────────────
+set_env_for_agent() {
+  local agent_name="$1"; shift
+  local agent_id="${AGENT_ID_BY_NAME[$agent_name]:-}"
+  [[ -z "$agent_id" ]] && return 0
+
+  # Build JSON object from key=value pairs
+  local json="{"
+  local first=1
+  for kv in "$@"; do
+    local k="${kv%%=*}"
+    local v="${kv#*=}"
+    [[ -z "$v" ]] && continue
+    [[ $first -eq 0 ]] && json+=","
+    json+="\"${k}\":$(printf '%s' "$v" | jq -Rs .)"
+    first=0
   done
-fi
+  json+="}"
 
-if [[ -n "${DATABASE_URL:-}" ]]; then
+  if [[ "$json" == "{}" ]]; then
+    return 0
+  fi
+
+  printf '%s' "$json" | multica agent update "${agent_id}" --custom-env-stdin >/dev/null
+}
+
+if [[ -n "${GH_TOKEN:-}${DATABASE_URL:-}" ]]; then
+  echo "==> Setting custom env on relevant agents..."
+  for agent in task-breaker code-reviewer; do
+    set_env_for_agent "$agent" "GH_TOKEN=${GH_TOKEN:-}"
+  done
   for agent in fe-dev be-dev qa-tester; do
-    multica agent env set "${WORKSPACE_ID}" "${agent}" DATABASE_URL "${DATABASE_URL}"
+    set_env_for_agent "$agent" "GH_TOKEN=${GH_TOKEN:-}" "DATABASE_URL=${DATABASE_URL:-}"
   done
+  echo "    ✓ Env vars set"
+else
+  echo "    ⚠ GH_TOKEN and DATABASE_URL not set — agents will need them later via 'multica agent update --custom-env-stdin'"
 fi
 
-echo "    ✓ Env vars set"
-
+# ──────────────────────────────────────────────────────────────────────────────
 # 8. Done
+# ──────────────────────────────────────────────────────────────────────────────
 cat <<EOF
 
 ==========================================================
 ✅ Workspace provisioned: ${PRODUCT_SLUG}
 ==========================================================
 
+Workspace ID: ${WORKSPACE_ID}
+Project ID:   ${PROJECT_ID}
+Runtime ID:   ${RUNTIME_ID}
+
+Agents:
+$(for k in "${!AGENT_ID_BY_NAME[@]}"; do printf "  %-16s %s\n" "$k" "${AGENT_ID_BY_NAME[$k]}"; done | sort)
+
 Next steps:
 
-1. Open the workspace UI:
-   open http://localhost:3000/${PRODUCT_SLUG}
+1. Run bootstrap-product (one-shot Lean Inception):
+   ${SCRIPT_DIR}/bootstrap-product-instructions.sh ${PRODUCT_SLUG}
+   (Outputs the chat URL + first message for you to paste — chat is UI-only.)
 
-2. Run bootstrap-product in a chat session:
-   ${SCRIPT_DIR}/bootstrap-product-chat.sh ${PRODUCT_SLUG}
-
-3. After bootstrap PR is merged, create your first US:
+2. After Product/ PR is merged, create your first US:
    - Manually in the UI, or
-   - Chat with pm-grooming agent: "Run skill grill-us. Seed: <your idea>."
+   - Via CLI:
+       MULTICA_WORKSPACE_ID=${WORKSPACE_ID} multica issue create \\
+         --title "US-1: <feature>" --project ${PROJECT_ID} \\
+         --assignee pm-grooming --status backlog
 
 The 9 agents are ready and waiting.
 

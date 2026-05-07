@@ -5,7 +5,7 @@ description: Frontend TDD workflow for Next.js 16 + RSC + TanStack Query + Shadc
 
 # TDD — frontend
 
-Used by `fe-dev` agent during `phase:dev` (label `domain:fe`).
+Used by `fe-dev` agent during `phase=dev` (marker `domain=fe`).
 
 ## Stack-expertise lives in repo
 
@@ -19,7 +19,7 @@ Read those FIRST. This skill is the orchestration layer ON TOP.
 
 ## Trigger
 
-Child issue with `domain:fe` + `phase:dev` assigned to you (`fe-dev`).
+Child issue with `domain=fe` + `phase=dev` assigned to you (`fe-dev`).
 
 ## Steps
 
@@ -157,7 +157,7 @@ EOF
 
 ### 8. Hand off to reviewer
 
-Run `multica-handoff` → `phase:rt-code-review`, reassign to `code-reviewer`.
+Run `multica-handoff` → `phase=rt-code-review`, reassign to `code-reviewer`.
 
 ## Hard rules (from CLAUDE.md)
 
@@ -192,4 +192,4 @@ git push
 gh pr merge --squash --delete-branch
 ```
 
-The squash-merge into `us-DUO-12` is your final action. The card is now `phase:done` (set by `code-reviewer` on approve). When all sibling children also reach `phase:done`, `qa-tester` picks up the parent for `phase:rt-test`.
+The squash-merge into `us-DUO-12` is your final action. The card is now `phase=done` (set by `code-reviewer` on approve). When all sibling children also reach `phase=done`, `qa-tester` picks up the parent for `phase=rt-test`.

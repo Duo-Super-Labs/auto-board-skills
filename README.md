@@ -53,23 +53,23 @@ Instructions for each agent live in `agents/*.md`. Paste these into Multica → 
 | `designer` | RtDesign, Design Doing | Sonnet |
 | `qa-planner` | RtTestPlan, Test Planning | Sonnet |
 | `task-breaker` | RtDev (split + branch hierarchy) | Opus |
-| `fe-dev` | Dev (label `domain:fe`) | Sonnet |
-| `be-dev` | Dev (label `domain:be`) | Sonnet |
+| `fe-dev` | Dev (marker `domain=fe`) | Sonnet |
+| `be-dev` | Dev (marker `domain=be`) | Sonnet |
 | `code-reviewer` | RtCodeReview, Code Review | Opus |
 | `qa-tester` | RtTest, Test | Sonnet |
 
-Human is assignee at `phase:homologation`.
+Human is assignee at `phase=homologation`.
 
 ## Phase-to-status mapping (Decision A)
 
-The Multica status enum is fixed (`backlog | todo | in_progress | in_review | done | blocked | cancelled`), so the 16 board phases collapse onto 5 statuses + a label `phase:*` for fine-grained position.
+The Multica status enum is fixed (`backlog | todo | in_progress | in_review | done | blocked | cancelled`), so the 16 board phases collapse onto 5 statuses + a label `phase=*` for fine-grained position.
 
 | Status | Phases |
 |---|---|
-| `backlog` | `phase:backlog`, `phase:product-planning` |
-| `todo` | `phase:rt-design`, `phase:rt-test-plan`, `phase:rt-refinement`, `phase:rt-dev` |
-| `in_progress` | `phase:design-doing`, `phase:test-planning`, `phase:refinement`, `phase:dev` |
-| `in_review` | `phase:rt-code-review`, `phase:code-review`, `phase:rt-test`, `phase:test` |
-| `done` | `phase:homologation`, `phase:done` |
+| `backlog` | `phase=backlog`, `phase=product-planning` |
+| `todo` | `phase=rt-design`, `phase=rt-test-plan`, `phase=rt-refinement`, `phase=rt-dev` |
+| `in_progress` | `phase=design-doing`, `phase=test-planning`, `phase=refinement`, `phase=dev` |
+| `in_review` | `phase=rt-code-review`, `phase=code-review`, `phase=rt-test`, `phase=test` |
+| `done` | `phase=homologation`, `phase=done` |
 
 See `03-multica-handoff/SKILL.md` for the routing table.

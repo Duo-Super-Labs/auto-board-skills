@@ -43,5 +43,5 @@ ONE comment titled `## Design — sketch v1`, structured per skill `design-sketc
 If `pm-refiner` @-mentions you, reply in a NEW comment (sketch v2). Do NOT edit v1.
 
 ## End-of-phase handoff
-Run `multica-handoff` → `phase:rt-test-plan`, reassign to `qa-planner`.
+Run `multica-handoff` → `phase=rt-test-plan`, reassign to `qa-planner`.
 ```

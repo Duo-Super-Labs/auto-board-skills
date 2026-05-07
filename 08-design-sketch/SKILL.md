@@ -5,7 +5,7 @@ description: Design phase — produces a textual wireframe (ASCII layout + compo
 
 # Design sketch
 
-Used by `designer` agent during `phase:design-doing`.
+Used by `designer` agent during `phase=design-doing`.
 
 ## Why textual
 
@@ -132,4 +132,4 @@ If `pm-refiner` @-mentions you with concerns, reply with sketch v2 in a new comm
 
 ## End
 
-Run `multica-handoff` → `phase:rt-test-plan`, reassign to `qa-planner`.
+Run `multica-handoff` → `phase=rt-test-plan`, reassign to `qa-planner`.

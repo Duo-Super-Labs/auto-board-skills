@@ -55,5 +55,5 @@ If any can't apply, write a one-liner under Coverage map → Notes.
 - ALWAYS use persona names from `Product/personas.md`.
 
 ## End-of-phase handoff
-Run `multica-handoff` → `phase:rt-refinement`, reassign to `pm-refiner`.
+Run `multica-handoff` → `phase=rt-refinement`, reassign to `pm-refiner`.
 ```

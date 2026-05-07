@@ -5,7 +5,7 @@ description: Test Planning phase — writes Given/When/Then scenarios from AC + 
 
 # BDD writer
 
-Used by `qa-planner` agent during `phase:test-planning`.
+Used by `qa-planner` agent during `phase=test-planning`.
 
 ## Input
 
@@ -122,4 +122,4 @@ If any of these can't apply, write a one-liner explaining why under "Coverage ma
 
 ## End
 
-Run `multica-handoff` → `phase:rt-refinement`, reassign to `pm-refiner` (orchestrator).
+Run `multica-handoff` → `phase=rt-refinement`, reassign to `pm-refiner` (orchestrator).

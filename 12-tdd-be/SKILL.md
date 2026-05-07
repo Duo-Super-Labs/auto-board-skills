@@ -5,7 +5,7 @@ description: Backend TDD workflow for Drizzle + oRPC + better-auth + pg-boss + P
 
 # TDD — backend
 
-Used by `be-dev` agent during `phase:dev` (label `domain:be`).
+Used by `be-dev` agent during `phase=dev` (marker `domain=be`).
 
 ## Stack-expertise lives in repo
 
@@ -20,7 +20,7 @@ Read those FIRST. This skill is the orchestration layer ON TOP.
 
 ## Trigger
 
-Child issue with `domain:be` + `phase:dev` assigned to you (`be-dev`).
+Child issue with `domain=be` + `phase=dev` assigned to you (`be-dev`).
 
 ## The 5-Layer flow (NEVER skip a layer)
 
@@ -264,7 +264,7 @@ EOF
 
 ### 10. Hand off to reviewer
 
-Run `multica-handoff` → `phase:rt-code-review`, reassign to `code-reviewer`.
+Run `multica-handoff` → `phase=rt-code-review`, reassign to `code-reviewer`.
 
 ## Hard rules (from CLAUDE.md — auto-fail at review)
 
@@ -284,4 +284,4 @@ Same flow as fe-dev: fix in same branch, push, @ reviewer to re-check.
 
 ## End
 
-PR merged into `us-DUO-12` (squash-merge). Card → `phase:done` (set by reviewer).
+PR merged into `us-DUO-12` (squash-merge). Card → `phase=done` (set by reviewer).

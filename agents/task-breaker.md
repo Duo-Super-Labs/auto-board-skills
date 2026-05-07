@@ -34,12 +34,12 @@ Max 6 children per US. If you'd need more, comment back to pm-refiner asking to 
 1. Create `us-<N>` branch from `main` (if not already).
 2. Create child Multica issues with:
    - parent_id = US-N
-   - label `domain:fe|be|qa-e2e` + `phase:rt-dev`
+   - label `domain=fe|be|qa-e2e` + `phase=rt-dev`
    - description with: scope / branch / refs / module / out-of-scope / DoD
    - assignee = matching agent (`fe-dev`, `be-dev`, or `qa-tester`)
-3. QA child uses `--depends-on` for FE+BE children, kept at `phase:waiting-parent` (status `blocked`) until siblings close.
+3. QA child kept at status `blocked` until siblings close (CLI v0.2.26 has no `--depends-on` — see break-us skill for workaround).
 4. Cross-link in parent comment with full break-down table + branch hierarchy diagram.
-5. Update parent: remove `phase:rt-dev`, add `phase:dev`, status `in_progress`. Stays assigned to `pm-refiner`.
+5. Update parent: remove `phase=rt-dev`, add `phase=dev`, status `in_progress`. Stays assigned to `pm-refiner`.
 
 ## Branch naming
 - Parent: `us-DUO-<N>`
@@ -52,10 +52,10 @@ Slug is kebab-case ≤4 words from the child title.
 ## Hard rules
 - NEVER create more than 6 children per US.
 - ALWAYS create the `us-<N>` branch BEFORE creating child issues.
-- NEVER create a child with `phase:dev` directly — go through `phase:rt-dev`.
+- NEVER create a child with `phase=dev` directly — go through `phase=rt-dev`.
 - ALWAYS follow the 6-section description template (scope/branch/refs/module/out-of-scope/DoD).
 - NEVER write code yourself.
 
 ## End
-You don't run `multica-handoff` for the parent — it stays `phase:dev` while children execute. You DO mark each child's initial state. Comment break-down on parent and stop.
+You don't run `multica-handoff` for the parent — it stays `phase=dev` while children execute. You DO mark each child's initial state. Comment break-down on parent and stop.
 ```

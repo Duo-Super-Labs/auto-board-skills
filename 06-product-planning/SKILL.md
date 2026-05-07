@@ -5,11 +5,11 @@ description: Product Planning phase — fills Acceptance Criteria, context, obje
 
 # Product Planning
 
-Used by `pm-grooming` agent during `phase:product-planning`.
+Used by `pm-grooming` agent during `phase=product-planning`.
 
 ## Trigger
 
-Issue with `phase:product-planning` label. The description should already have:
+Issue with `phase=product-planning` label. The description should already have:
 - `## User Story`
 - `## Personas Involved`
 - `## Why now`
@@ -96,4 +96,4 @@ Reference `packages/permissions` resources/actions table from `CLAUDE.md`.
 
 ## End
 
-Run `multica-handoff` → `phase:rt-design`, reassign to `designer`.
+Run `multica-handoff` → `phase=rt-design`, reassign to `designer`.

@@ -5,11 +5,11 @@ description: Backlog phase — produces a User Story from personas + constraints
 
 # Grill US
 
-Used by `pm-grooming` agent during `phase:backlog`.
+Used by `pm-grooming` agent during `phase=backlog`.
 
 ## Trigger
 
-You are assigned an issue with `phase:backlog` label. The issue typically has:
+You are assigned an issue with `phase=backlog` label. The issue typically has:
 - A title or seed idea (could be vague: "Print non-conformities feature")
 - Sometimes a comment from a human with rough requirements
 
@@ -49,7 +49,7 @@ So that **<outcome>**.
 - [ ] <thing pm-grooming couldn't answer alone>
 ```
 
-> The `## Acceptance Criteria` section is NOT filled by you — that's `phase:product-planning` (next phase).
+> The `## Acceptance Criteria` section is NOT filled by you — that's `phase=product-planning` (next phase).
 
 ## Grilling protocol
 
@@ -90,4 +90,4 @@ Wait for human reply. Then ask next question. Iterate until US is complete.
 
 ## End
 
-Once description is complete, `multica-handoff` → `phase:product-planning` (still self-assigned; same agent fills AC).
+Once description is complete, `multica-handoff` → `phase=product-planning` (still self-assigned; same agent fills AC).
