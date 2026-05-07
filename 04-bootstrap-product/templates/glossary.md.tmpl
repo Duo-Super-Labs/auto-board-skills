@@ -1,0 +1,26 @@
+# Glossary — {{PRODUCT_NAME}}
+
+> Ubiquitous language. 10-30 terms. Use these EXACT names everywhere — UI labels, code, comments, US text.
+
+| Term | Definition | Notes |
+|---|---|---|
+| **<Term 1>** | <one-line definition> | <e.g. "owned by Persona X; constrained by Y"> |
+| **<Term 2>** | ... | ... |
+| **<Term 3>** | ... | ... |
+
+## Anti-glossary (terms we explicitly DON'T use)
+
+| Avoid | Use instead | Why |
+|---|---|---|
+| "user" (when a specific role is meant) | "buyer" / "seller" / "admin" | Specificity reduces ambiguity |
+| "page" (in code) | "module" / "route" | Matches admin module anatomy |
+
+## Naming conventions
+
+- Database table: snake_case (`non_conformity`)
+- TypeScript type: PascalCase (`NonConformity`)
+- API path: kebab-case (`/admin/non-conformities/bulk-print`)
+- React component: PascalCase (`NonConformitiesPage`)
+- File: kebab-case (`non-conformities.tsx`)
+- Permission resource: PascalCase (`NonConformities`)
+- Permission action: PascalCase (`BulkPrint`)

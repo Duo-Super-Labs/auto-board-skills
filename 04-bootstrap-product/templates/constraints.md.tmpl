@@ -1,0 +1,49 @@
+# Constraints — {{PRODUCT_NAME}}
+
+## Technical (inherited from `admin` template)
+
+- **Stack:** Next.js 16 + RSC + Turbopack + TypeScript strict
+- **Monorepo:** Turborepo + pnpm workspaces
+- **Auth:** better-auth with `organization` + `admin` + `twoFactor` plugins
+- **Database:** PostgreSQL + Drizzle ORM
+- **API:** oRPC contract-first (5-Layer flow)
+- **UI:** Shadcn UI + Radix UI + Tailwind CSS (theme tokens in `tooling/tailwind/theme.css`)
+- **State:** TanStack Query (server) + Zustand (client) + nuqs (URL)
+- **Forms:** React Hook Form + Zod (schemas derived from `drizzle-zod`)
+- **Storage:** Bucket-based via `packages/storage` (presigned URL pattern)
+- **Email:** `packages/mail`
+- **Jobs:** pg-boss via `packages/jobs` (dual-mode: serverless + worker)
+- **Testing:** Vitest (unit/integration) + Playwright (E2E, real DB)
+- **Multi-tenant:** row-level isolation via `organizationId` (HARD invariant — every query MUST scope)
+
+## Product-specific stack additions
+
+<add only if you need something the admin template doesn't have>
+- ...
+
+## Business
+
+- <pricing model: free / freemium / paid>
+- <target market segment>
+- <expected scale: # tenants / # users / # records>
+
+## Non-functional (NFR)
+
+- **Latency p95:** <target, e.g. < 300ms for list endpoints>
+- **Availability:** <target, e.g. 99.5%>
+- **i18n:** <languages: en, pt-BR, es?>
+- **Accessibility:** <WCAG level: AA mandatory in admin template>
+- **Mobile:** <responsive desktop+mobile mandatory; native apps later?>
+
+## Compliance / regulatory
+
+- <LGPD if Brazilian users>
+- <GDPR if European users>
+- <PCI if card data — usually offload to Stripe/Lemonsqueezy>
+- <industry-specific: HIPAA, SOC2, etc.>
+
+## Hard "no"s — will never do
+
+- <thing this product will never do, even if asked>
+- <e.g., "no chat — escalation goes via email">
+- <e.g., "no on-prem deploy — SaaS only">
