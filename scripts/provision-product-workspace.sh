@@ -80,12 +80,21 @@ echo "==> Provisioning workspace for product: ${PRODUCT_SLUG}"
 echo "==> Checking multica auth..."
 multica auth status >/dev/null 2>&1 || { echo "❌ multica not authenticated. Run: multica login"; exit 1; }
 
-echo "==> Checking multica daemon..."
-DAEMON_STATUS=$(multica daemon status 2>&1 || true)
-if echo "$DAEMON_STATUS" | grep -qi 'stopped'; then
-  echo "❌ Daemon is stopped. Start it: multica daemon start"
+echo "==> Checking for online claude runtime (any machine)..."
+# We don't care if THIS Mac has a daemon — we care that some machine
+# (e.g. the WSL host) has a claude runtime online for the workspace
+# we're about to provision. The local-daemon check is misleading because
+# in our topology the daemon runs on WSL, not on the operator's Mac.
+RUNTIME_PROBE=$(multica runtime list --output json 2>/dev/null \
+  | jq -r '.[]? | select(.provider=="claude" and .status=="online") | "\(.id) \(.name)"')
+if [[ -z "$RUNTIME_PROBE" ]]; then
+  echo "❌ No online claude runtime found server-side."
+  echo "   Start the daemon on a machine that has 'claude' on PATH (typically WSL):"
+  echo "     ssh renatoastra@desktop-76n2ggj 'multica daemon start'"
   exit 1
 fi
+echo "    ✓ Online claude runtime(s) detected:"
+echo "$RUNTIME_PROBE" | head -3 | sed 's/^/      /'
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 1. Resolve workspace ID by name (multica CLI v0.2.26: workspace list returns
