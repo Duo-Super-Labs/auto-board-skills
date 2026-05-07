@@ -46,9 +46,14 @@ PROJECT_ID=$(echo "$PROJECT_LIST_JSON" | jq -r --arg slug "$PRODUCT_SLUG" '
 
 REPO_URL=""
 if [[ -n "$PROJECT_ID" && "$PROJECT_ID" != "null" ]]; then
+  # Multica returns resources as { resource_type, resource_ref: {url}, label, ... }
+  # so we drill into .resource_ref.url and filter for the slug.
   REPO_URL=$(MULTICA_WORKSPACE_ID="$WORKSPACE_ID" multica project resource list "$PROJECT_ID" --output json 2>/dev/null \
     | jq -r --arg slug "$PRODUCT_SLUG" '
-      (.[]? // empty) | select(.url | test($slug)) | .url
+      (.[]? // empty)
+      | select(.resource_type == "github_repo")
+      | (.resource_ref.url // "")
+      | select(. != "" and test($slug))
     ' | head -1)
 fi
 
@@ -63,29 +68,31 @@ APP_URL="${SERVER_URL%/api}"
 
 CHAT_URL="${APP_URL}/${SLUG}/chat"
 
-# Compose the first message
-FIRST_MSG=$(cat <<EOF
+# Compose the first message.
+# Avoid FIRST_MSG=$(cat <<EOF ... EOF) — heredoc bodies with parens like
+# "(vision board template)" trip bash's $() parser ("unexpected EOF while
+# looking for matching `)'"). `read -r -d ''` is the bullet-proof form.
+read -r -d '' FIRST_MSG <<EOF || true
 Run skill bootstrap-product.
 
 Product: ${PRODUCT_SLUG}
-Repo: ${REPO_URL:-<not detected — please confirm>}
+Repo: ${REPO_URL:-<not detected, please confirm>}
 
 Please grill me through the 6 Lean Inception artifacts in order:
 
-  1. Vision (vision board template)
-  2. Personas (3-5; anchor in real users)
-  3. Journeys (one per persona's primary goal; pain points per step)
-  4. Features (canvas + thin MVP slice ≤7 features)
-  5. Constraints (technical inherited from admin + business + NFR + hard nos)
-  6. Glossary (10-30 ubiquitous terms)
+  1. Vision -- vision board template
+  2. Personas -- 3 to 5; anchor in real users
+  3. Journeys -- one per persona primary goal; pain points per step
+  4. Features -- canvas plus thin MVP slice, max 7 features
+  5. Constraints -- technical inherited from admin, business, NFR, hard nos
+  6. Glossary -- 10 to 30 ubiquitous terms
 
-Use the templates from this skill's directory as starting points. Ask one
+Use the templates from this skill directory as starting points. Ask one
 question at a time and wait for my reply before the next.
 
 When all six are drafted, commit them to Product/ on a branch and open a PR
 against main.
 EOF
-)
 
 # Output instructions
 cat <<EOF
