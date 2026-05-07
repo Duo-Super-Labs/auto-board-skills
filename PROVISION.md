@@ -71,16 +71,47 @@ When the CLI grows these features, the affected SKILL.md files migrate to native
 - `jq` installed
 - Env: `GH_TOKEN`, `DATABASE_URL` (will be passed to relevant agents via `--custom-env-stdin`)
 
-## Step 1 — Fork `admin` to your new product
+## Step 1 — Create the empty repo on GitHub
 
 ```bash
-gh repo create Duo-Super-Labs/<product-slug> --template Duo-Super-Labs/admin --private
-gh repo clone Duo-Super-Labs/<product-slug>
+gh repo create Duo-Super-Labs/<product-slug> --private --description "<one-line>"
+```
+
+(GitHub's `--template` flag works too, but copies admin as a tree without
+preserving history. We prefer pushing admin's history to keep the audit
+trail; see Step 1.5.)
+
+## Step 1.5 — Populate the empty repo from admin (run on WSL)
+
+All product repos live under `~/products/<slug>/` on the WSL host (the
+same machine that runs the Multica daemon and the per-product Docker
+stack). This is also where the human can `cd` to inspect / dev / test
+manually, separate from the agent workdirs in `~/multica_workspaces/`.
+
+```bash
+ssh renatoastra@desktop-76n2ggj 'bash -s' <<'EOF'
+cd ~/products
+gh repo clone Duo-Super-Labs/admin <product-slug>
 cd <product-slug>
+git remote set-url origin git@github.com:Duo-Super-Labs/<product-slug>.git
+git push -u origin main
+EOF
+```
+
+This copies admin's full history into the new product repo and gives the
+WSL a working checkout at `~/products/<product-slug>`.
+
+## Step 2 — Bring up the local stack (one-time per product)
+
+```bash
+# Still on WSL, in the new product checkout:
+ssh renatoastra@desktop-76n2ggj 'bash -s' <<'EOF'
+cd ~/products/<product-slug>
 pnpm install
-docker compose up -d
+~/auto-board-skills/scripts/product-stack.sh up <product-slug> "$PWD"
 pnpm --filter @duolabs/database migrate
 pnpm typecheck
+EOF
 ```
 
 If green, you're ready.
