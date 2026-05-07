@@ -1,0 +1,4 @@
+cli/bin/
+cli/node_modules/
+cli/coverage/
+cli/*.bun-build

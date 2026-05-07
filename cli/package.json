@@ -1,0 +1,33 @@
+{
+  "name": "auto-board-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "auto-board": "./bin/auto-board"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --compile --outfile bin/auto-board",
+    "dev": "bun run --hot src/index.ts",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "biome check src tests",
+    "lint:fix": "biome check --write src tests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.9.1",
+    "commander": "^12.1.0",
+    "consola": "^3.4.2",
+    "execa": "^9.5.2",
+    "listr2": "^8.2.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/bun": "^1.2.20",
+    "@vitest/coverage-v8": "2.1.9",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}
