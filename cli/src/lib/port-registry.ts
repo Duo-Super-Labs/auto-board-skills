@@ -1,6 +1,51 @@
 import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { PortRegistrySchema, portsForOffset } from "../types/registry.js";
 import type { PortRegistry, ProductPorts } from "../types/registry.js";
+
+/**
+ * Resolve the path to port-registry.json, trying these in order:
+ *  1. $AUTO_BOARD_SKILLS_DIR/port-registry.json (explicit override)
+ *  2. $HOME/auto-board-skills/port-registry.json (canonical install location)
+ *  3. $PWD/port-registry.json (running from inside the repo)
+ *  4. Walk up from $PWD looking for "port-registry.json" (e.g., subdir of repo)
+ *
+ * Returns the first existing path. Throws if none found, listing all tried.
+ */
+export function resolveRegistryPath(): string {
+  const tried: string[] = [];
+
+  const envDir = process.env.AUTO_BOARD_SKILLS_DIR;
+  if (envDir !== undefined && envDir !== "") {
+    const p = path.join(envDir, "port-registry.json");
+    tried.push(p);
+    if (fs.existsSync(p)) return p;
+  }
+
+  const home = path.join(os.homedir(), "auto-board-skills", "port-registry.json");
+  tried.push(home);
+  if (fs.existsSync(home)) return home;
+
+  const cwd = path.join(process.cwd(), "port-registry.json");
+  tried.push(cwd);
+  if (fs.existsSync(cwd)) return cwd;
+
+  // Walk up from $PWD
+  let dir = process.cwd();
+  for (let i = 0; i < 6; i++) {
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+    const p = path.join(dir, "port-registry.json");
+    tried.push(p);
+    if (fs.existsSync(p)) return p;
+  }
+
+  throw new Error(
+    `port-registry.json not found. Tried:\n  ${tried.join("\n  ")}\n\nSet AUTO_BOARD_SKILLS_DIR or run from inside the repo.`
+  );
+}
 
 /**
  * Parse raw JSON string into a validated PortRegistry.

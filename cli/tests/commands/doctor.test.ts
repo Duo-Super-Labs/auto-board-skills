@@ -17,6 +17,7 @@ vi.mock("../../src/lib/github.js", () => ({
 
 vi.mock("../../src/lib/port-registry.js", () => ({
   readRegistry: vi.fn(),
+  resolveRegistryPath: vi.fn(() => "/mock/auto-board-skills/port-registry.json"),
 }));
 
 vi.mock("node:fs", () => ({

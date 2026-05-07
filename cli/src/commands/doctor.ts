@@ -1,15 +1,10 @@
 import * as fs from "node:fs";
-import * as path from "node:path";
-import * as url from "node:url";
 import type { Command } from "commander";
 import { runWithOutput } from "../lib/exec.js";
 import { authStatus as ghAuthStatus } from "../lib/github.js";
 import { findClaudeRuntime, authStatus as multicaAuthStatus } from "../lib/multica-cli.js";
-import { readRegistry } from "../lib/port-registry.js";
+import { readRegistry, resolveRegistryPath } from "../lib/port-registry.js";
 import { checkLine, header, warnLine } from "../log.js";
-
-const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
-const REGISTRY_PATH = path.resolve(__dirname, "../../../port-registry.json");
 
 interface CheckResult {
   label: string;
@@ -84,20 +79,30 @@ async function checkGhAuth(): Promise<CheckResult> {
 }
 
 async function checkPortRegistry(): Promise<CheckResult> {
-  if (!fs.existsSync(REGISTRY_PATH)) {
+  let registryPath: string;
+  try {
+    registryPath = resolveRegistryPath();
+  } catch (err) {
     return {
       label: "port-registry.json",
       ok: false,
-      detail: `not found at ${REGISTRY_PATH}`,
+      detail: err instanceof Error ? err.message : String(err),
+    };
+  }
+  if (!fs.existsSync(registryPath)) {
+    return {
+      label: "port-registry.json",
+      ok: false,
+      detail: `not found at ${registryPath}`,
     };
   }
   try {
-    const registry = readRegistry(REGISTRY_PATH);
+    const registry = readRegistry(registryPath);
     const productCount = Object.keys(registry.products).length;
     return {
       label: "port-registry.json",
       ok: true,
-      detail: `valid — ${productCount} product(s), next offset=${registry.$next_available_offset}`,
+      detail: `valid — ${productCount} product(s), next offset=${registry.$next_available_offset} (${registryPath})`,
     };
   } catch (err) {
     return {

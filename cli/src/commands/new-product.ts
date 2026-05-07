@@ -1,17 +1,25 @@
 import * as path from "node:path";
-import * as url from "node:url";
 import * as clack from "@clack/prompts";
 import type { Command } from "commander";
 import { Listr } from "listr2";
 import { runStream } from "../lib/exec.js";
 import { createRepo, repoExists } from "../lib/github.js";
-import { ensureProductAllocated } from "../lib/port-registry.js";
+import { ensureProductAllocated, resolveRegistryPath } from "../lib/port-registry.js";
 import { buildRemoteScript, sshRun, sshStream } from "../lib/ssh.js";
 import { log } from "../log.js";
 
-const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
-const REGISTRY_PATH = path.resolve(__dirname, "../../../port-registry.json");
-const PROVISION_SCRIPT = path.resolve(__dirname, "../../../scripts/provision-product-workspace.sh");
+// Resolve registry + provision script paths relative to the repo root
+// (the directory that contains port-registry.json). This works for both
+// `bun run src/index.ts` (dev) and the compiled binary (where __dirname
+// points to a virtual location and relative paths break).
+function resolvePaths(): { registryPath: string; provisionScript: string } {
+  const registryPath = resolveRegistryPath();
+  const repoRoot = path.dirname(registryPath);
+  return {
+    registryPath,
+    provisionScript: path.join(repoRoot, "scripts", "provision-product-workspace.sh"),
+  };
+}
 
 const ORG = "Duo-Super-Labs";
 
@@ -94,7 +102,8 @@ export function registerNewProduct(program: Command): void {
             {
               title: "Allocate ports in port-registry.json",
               task: async (_ctx, task) => {
-                const result = ensureProductAllocated(REGISTRY_PATH, slug);
+                const { registryPath } = resolvePaths();
+                const result = ensureProductAllocated(registryPath, slug);
                 _ctx.portAllocated = result.isNew;
                 const ports = result.ports;
                 const detail = result.isNew
@@ -196,10 +205,11 @@ export function registerNewProduct(program: Command): void {
 
         // ─── Step 4: Provision workspace ─────────────────────────────────────
         if (!opts.skipProvision) {
+          const { registryPath, provisionScript } = resolvePaths();
           let dbUrl: string | undefined = opts.databaseUrl;
           if (!dbUrl) {
             try {
-              const registry = readRegistry(REGISTRY_PATH);
+              const registry = readRegistry(registryPath);
               dbUrl = databaseUrlFor(registry, slug);
             } catch {
               dbUrl = undefined;
@@ -217,7 +227,7 @@ export function registerNewProduct(program: Command): void {
           }
 
           try {
-            await runStream("bash", [PROVISION_SCRIPT, slug, ctx.repoUrl], { env: provisionEnv });
+            await runStream("bash", [provisionScript, slug, ctx.repoUrl], { env: provisionEnv });
           } catch (err) {
             log.error(`Provision failed: ${err instanceof Error ? err.message : String(err)}`);
             log.info("You can re-run provision manually:");

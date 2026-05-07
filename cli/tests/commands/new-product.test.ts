@@ -9,6 +9,7 @@ vi.mock("../../src/lib/port-registry.js", () => ({
   ensureProductAllocated: vi.fn(),
   readRegistry: vi.fn(),
   databaseUrlFor: vi.fn(),
+  resolveRegistryPath: vi.fn(() => "/mock/auto-board-skills/port-registry.json"),
 }));
 
 vi.mock("../../src/lib/ssh.js", () => ({
