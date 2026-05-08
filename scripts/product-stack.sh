@@ -98,23 +98,26 @@ do_setup() {
 services:
   postgres:
     container_name: ${SLUG}_postgres
-    ports:
+    # !override REPLACES the upstream ports array instead of merging.
+    # Without it, both 5432 (template's hardcoded) AND ${POSTGRES_PORT} bind,
+    # causing collision with Multica server's own postgres on host 5432.
+    ports: !override
       - "${POSTGRES_PORT}:5432"
 
   postgres-test:
     container_name: ${SLUG}_postgres_test
-    ports:
+    ports: !override
       - "${POSTGRES_TEST_PORT}:5432"
 
   minio:
     container_name: ${SLUG}_minio
-    ports:
+    ports: !override
       - "${MINIO_API_PORT}:9000"
       - "${MINIO_CONSOLE_PORT}:9001"
 
   mailpit:
     container_name: ${SLUG}_mailpit
-    ports:
+    ports: !override
       - "${MAILPIT_SMTP_PORT}:1025"
       - "${MAILPIT_UI_PORT}:8025"
 
