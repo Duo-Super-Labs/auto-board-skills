@@ -171,6 +171,19 @@ do_up() {
       --env-file "$ENV_PATH" \
       up -d )
 
+  # Mirror the env into the product repo so pnpm/drizzle can read it.
+  # `dotenv -c -e ../../.env` (drizzle-kit migrate) expects .env at repo root.
+  if [[ -f "$PRODUCT_REPO/.env" ]]; then
+    if ! diff -q "$ENV_PATH" "$PRODUCT_REPO/.env" >/dev/null 2>&1; then
+      echo "    ⚠ Existing $PRODUCT_REPO/.env differs from stack env — leaving alone."
+      echo "      Stack env: $ENV_PATH"
+      echo "      To sync:   cp $ENV_PATH $PRODUCT_REPO/.env"
+    fi
+  else
+    cp "$ENV_PATH" "$PRODUCT_REPO/.env"
+    echo "    ✓ Mirrored stack env → $PRODUCT_REPO/.env"
+  fi
+
   echo "✓ Stack up. DATABASE_URL=${DATABASE_URL}"
 }
 
