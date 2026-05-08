@@ -113,6 +113,45 @@ kill $DEV_PID 2>/dev/null
 
 Same flow as `e2e-write` step 6 — create a fix child issue, move parent back to `phase=dev`. Smoke findings carry MORE weight than spec failures because they catch what automation misses (visual, UX).
 
+## Visual verification gate (4 mandatory checks)
+
+⚠️ **Agents do not see the screen** — the Playwright spec asserts on the DOM, but pixels can be wrong even when the DOM is correct. These 4 checks are the human-equivalent verification you do via Playwright MCP:
+
+### Check 1 — Console errors
+
+```js
+// Via Playwright MCP, in the browser
+console_logs_check
+```
+
+Pass: zero `console.error`, zero React warnings, zero hydration mismatches.
+Fail: any error → flag in smoke comment, classify as BLOCKER if it's a real error (not a third-party noise).
+
+### Check 2 — Layout
+
+For each viewport (mobile 375×667, desktop 1440×900):
+- No horizontal scroll on body unless intentional
+- No element overlapping a button/link in a way that prevents clicking
+- No text clipped by container (especially on mobile)
+- Sidebar/header heights match `--sidebar-width: 240px` / `--header-height: 64px` design tokens
+- Loading state actually visible (not flashed for <100ms then gone)
+
+### Check 3 — Interactions
+
+Walk the happy path manually:
+- Hover state visible on interactive elements
+- Disabled state distinct from active state
+- Focus ring on `:focus-visible` (keyboard nav)
+- Click feedback (loading spinner, toast, or transition) within 200ms of click
+
+### Check 4 — Special states
+
+For each AC that mentions a special state, verify it visually:
+- Empty state: copy is helpful, has a CTA if appropriate
+- Loading state: skeleton shape matches the eventual content layout
+- Error state: error message is actionable, not "Something went wrong"
+- RBAC-hidden state: gated UI is genuinely absent (not just `display: none`-hidden)
+
 ## Hard rules
 
 - NEVER skip smoke when product touches user-facing UI

@@ -172,6 +172,65 @@ When all six are drafted:
 - `bootstrap-product` is done forever for this product
 - Future updates to `Product/` happen via normal PR flow
 
+## Mandatory inclusions in `Product/`
+
+Every product's `Product/` folder must include these distinctive sections, no exceptions:
+
+### `constraints.md` — three required subsections
+
+```markdown
+## Imutáveis (HUMAN-ONLY change zone)
+
+- <constraint that must NEVER change without an explicit chat with the human>
+- ...
+
+Agents reading this file: if a US, AC, or refactor would touch any of these, STOP and comment requesting human resolution.
+
+## Inherits from `admin` template
+
+- <list of duo-admin invariants this product respects: multi-tenant via organizationId, 5-Layer API flow, etc.>
+
+## Overrides
+
+- <product-specific divergences from admin defaults — must be justified>
+```
+
+### `features.md` — minimum 3 no-gos
+
+```markdown
+## Won't-have (out of scope, ever)
+
+- <no-go 1: ...>
+- <no-go 2: ...>
+- <no-go 3: ...>
+```
+
+A product without explicit no-gos drifts. The grilling MUST extract at least 3 things this product will NEVER do, before bootstrap completes.
+
+## Anti-hallucination contract — for the agent doing the grilling
+
+Some sections of `Product/` are tempting to fill from training data. DON'T:
+
+❌ Don't invent personas because they sound plausible. Every persona must be anchored in a real user the human knows.
+❌ Don't fabricate market data ("the marketplace industry is worth $X"). If you cite numbers, they came from a fetched source — add a `## Sources` section with URLs.
+❌ "I don't know" / "ask the human" is a valid response when the answer isn't in what the human said.
+❌ Confidence labels: when stating something the human didn't explicitly confirm, mark `(inferred)` or `(assumption)` so the human can correct on review.
+
+When in doubt, ask one more question rather than fabricate.
+
+## Optional: 4-agent parallel shape (future enhancement)
+
+For richer discovery on complex products, a future enhancement is to spawn 4 sub-agents in parallel during the workshop:
+
+| Sub-agent | Output |
+|---|---|
+| Deep market | Competitor matrix + pain quotes (URLs cited) + market sizing |
+| Tech feasibility | Mapping of features to `admin` template capabilities + gaps |
+| Press release drafter | Amazon Working Backwards press release + FAQ |
+| Rabbit holes lister | Pitfalls typical of this product class + product-specific |
+
+Currently bootstrap-product is single-agent. The 4-agent shape is a TODO for `04b-shape-product` skill.
+
 ## Hard rules
 
 - NEVER skip the grilling — agents that fabricate personas produce stock content

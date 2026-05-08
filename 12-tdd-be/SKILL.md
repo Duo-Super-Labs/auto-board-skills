@@ -297,6 +297,36 @@ Run `multica-handoff` → `phase=rt-code-review`, reassign to `code-reviewer`.
 - ❌ Mocking the DB in tests (Real Docker Postgres only)
 - ❌ `enums` (use `as const` maps)
 
+## Hard implementation rules (non-negotiable)
+
+Universal style + safety rules. Reviewer auto-rejects on any violation.
+
+- **TypeScript strict** — no `any`. Use `unknown` + zod parsing at boundaries.
+- **Function declarations** for pure helpers (Layer 3 query functions are ALL pure functions). No classes in business logic.
+- **File size: ≤200 lines.** If a procedure grows past 200, the procedure is doing too much — split into multiple procedures or extract Layer 3 helpers.
+- **`@duolabs/logs` for diagnostics**, never `console.log`. Server logs are structured JSON.
+- **No raw SQL** unless absolutely necessary. Drizzle's query builder + relational queries handle 99% of cases.
+- **All queries scoped by `organizationId`** — multi-tenant invariant. Reviewer searches the diff for `organizationId` and rejects if missing on any non-system query.
+- **`drizzle-zod` is the ONLY source for input/output Zod schemas** in API contracts. Never hand-write a parallel schema — it WILL drift.
+- **Sensitive field omission ONLY in `packages/database/src/schema/zod.ts`** (Layer 2). Never in queries, procedures, or response shaping.
+- **`ORPCError.throw`, never return error objects.** Middleware chain handles serialization.
+- **Run before push:** `pnpm typecheck && pnpm --filter @duolabs/database test && pnpm --filter @duolabs/api test`. Migration applies cleanly: `pnpm --filter @duolabs/database migrate`.
+
+## Delegation map (read these before coding)
+
+In addition to `read-product-context`, this agent leans on:
+
+- `.claude/skills/api-recipe/` — oRPC procedure layout, middleware chain, ORPCError patterns
+- `.claude/skills/db-recipe/` — Drizzle schema, drizzle-zod, pure Layer 3 functions
+- `.claude/skills/orpc-contract-first/` — contract-first methodology, Layer 4 discipline
+- `.claude/skills/better-auth-best-practices/` — better-auth integration patterns
+- `.claude/skills/auth-feature/` — auth layer recipe (organization plugin, magicLink, passkey)
+- `.claude/rules/api-architecture.mdc` — middleware order
+- `.claude/rules/database-patterns.mdc` — multi-tenant query rules
+- `.claude/rules/performance.mdc` — pagination, caching, N+1 avoidance
+- `.claude/rules/key-principles.mdc` — universal invariants
+- `.claude/knowledge/decisions/` — historical BE decisions (especially the pgboss-* and permix-* entries)
+
 ## On reviewer rejection
 
 Same flow as fe-dev: fix in same branch, push, @ reviewer to re-check.

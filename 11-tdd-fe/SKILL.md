@@ -174,6 +174,33 @@ These trigger automatic review failure if violated. Reviewer will reject.
 - ❌ `invalidateQueries` inside component callbacks (lives in `api.ts`)
 - ❌ `mutate` when form needs sequential steps (use `mutateAsync` + try/catch)
 
+## Hard implementation rules (non-negotiable)
+
+These are universal style + safety rules. Reviewer rejects on any violation.
+
+- **TypeScript strict** — every file. No `any`; use `unknown` + narrowing.
+- **Function declarations** for pure helpers (`function foo()`), not arrow consts. Avoid classes in business logic.
+- **File size: ≤200 lines.** If a component grows past 200, extract sub-components or hooks.
+- **`@duolabs/logs` for diagnostics**, never `console.log`. The logger is structured JSON; component-tier `console.warn` slips into production unfiltered.
+- **No hardcoded colors** — only semantic CSS tokens from `tooling/tailwind/theme.css`.
+- **No cross-module imports** inside `modules/admin/<a>/` reaching into `modules/admin/<b>/`. If you need shared code, extract into `modules/admin/shared/`.
+- **Imports relative or alias** — never deep paths like `../../../../packages/api/...`. Use `@duolabs/api`, `@admin/...`, `@shared/...`.
+- **Sensitive field omission lives ONLY in `packages/database/src/schema/zod.ts`** (Layer 2). If you find yourself omitting fields elsewhere, delete that and fix Layer 2.
+- **Run before push:** `pnpm typecheck && pnpm --filter @duolabs/web test && pnpm --filter @duolabs/web e2e -g "<your scenario>"`. CI will catch this anyway, but pushing red wastes a review cycle.
+
+## Delegation map (read these before coding)
+
+In addition to `read-product-context`, this agent leans on:
+
+- `.claude/skills/frontend-recipe/` — module anatomy, api.ts hook pattern, route wrapper, listing/settings/form templates, mutate vs mutateAsync
+- `.claude/skills/data-table/` — `useCreateTable` + DataTable compound (any listing page)
+- `.claude/skills/sidebar-navigation/` — Sidebar + SidebarConfig (when adding nav)
+- `.claude/skills/auth-feature/` — when the feature needs session/role context
+- `.claude/rules/ui-and-styling.mdc` — design token usage
+- `.claude/rules/syntax-and-formatting.mdc` — TS style
+- `.claude/rules/typescript-usage.mdc` — strict-mode patterns
+- `.claude/knowledge/decisions/` — historical FE decisions to respect
+
 ## On reviewer rejection
 
 If `code-reviewer` requests changes (you'll be @-mentioned), pull the issue context, fix in same branch, push, comment back. Do NOT close the PR.

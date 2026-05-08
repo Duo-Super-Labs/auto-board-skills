@@ -87,6 +87,36 @@ For any US touching data, ALWAYS include:
 
 Reference `packages/permissions` resources/actions table from `CLAUDE.md`.
 
+## US text is FROZEN-scope (no scope creep at planning)
+
+The US text was produced by `grill-us` after a deliberate interview. **You are not authorized to invent features the US doesn't mention** — even if you "obviously need them" to make the AC complete.
+
+Examples of scope creep to refuse:
+
+❌ "While we're at it, let's also add bulk-delete" — the US said BULK PRINT. Bulk delete is a separate US.
+❌ "We should add a confirmation modal" — UNLESS the US's `## Why now` references a destructive concern.
+❌ "We'll need a new `Reports` permission resource" — UNLESS already implied by the persona's role differentiation.
+
+If you genuinely think the US is missing AC needed for the personas to succeed, **add it as a comment under `## Open questions`** and @-mention `pm-grooming`. They decide whether to update the US (frozen text) or split into a new US.
+
+The exception: tenant isolation + RBAC checks are ALWAYS required for data features (admin invariant). Adding those is not scope creep — it's enforcing the invariant.
+
+## Issue #1 of every product = "Project setup + smoke test"
+
+Before any feature US, every new product needs a foundation US:
+
+- **Title:** `US-1: Project setup + smoke test`
+- **Type:** Tech debt (label `domain=infra` once available; for now use no domain)
+- **AC:**
+  - [ ] AC-1: `pnpm install && pnpm typecheck` clean on the product fork
+  - [ ] AC-2: Docker stack up via `product-stack.sh up <slug> $PWD`
+  - [ ] AC-3: Test database migrated, smoke test (login flow) passes via Playwright
+  - [ ] AC-4: CI workflow green on first push (typecheck + Vitest + Playwright)
+  - [ ] AC-5: `Product/` folder is committed and complete (vision/personas/journeys/features/constraints/glossary)
+- **Definition of done:** developer can clone the repo, run `pnpm install && pnpm dev`, log in to the local instance, and see the seeded admin dashboard.
+
+This US doesn't go through full Design/BDD — it's infrastructure. It DOES go through TDD (write the smoke spec first) and Code Review.
+
 ## Hard rules
 
 - NEVER write code, JSX, or specific function names

@@ -181,6 +181,58 @@ multica issue update <us-id> \
 
 Comment on parent: `All children merged. → @qa-tester for E2E.`
 
+## Type-aware Definition of Done
+
+Different issue types have different DoD criteria. Match the parent US's type before approving:
+
+### Story (new feature)
+- [ ] Module touched is **complete** — every AC has a code path; nothing is "TODO later"
+- [ ] **RBAC** is enforced where personas differentiate (`canAccess` middleware in chain, or `usePermission` gate in UI)
+- [ ] **Tenant isolation** test exists when feature touches `organizationId`-scoped data
+- [ ] **No route in `app/` exceeds ~10 lines of logic** — business logic lives in `modules/<feature>/` (per `frontend-recipe`)
+- [ ] All AC have at least one E2E scenario (verified after qa-tester runs, but reviewer flags missing coverage)
+
+### Bug fix
+- [ ] **Reproducing test exists and PASSES** with the fix — without it, regression is not provable
+- [ ] **Cirurgical diff** — the fix touches only what's needed. If the diff has refactoring "by the way", reject and ask for separation
+- [ ] **Adjacent functionality** is unbroken (CI matrix covers; reviewer mentally walks the surrounding callers)
+
+### Tech debt / refactor
+- [ ] **Same functionality, better metrics** — proven by tests passing AND a measurable improvement (build time, bundle size, test runtime, type-check time). If no metric improves, the refactor is ego.
+- [ ] **No silent behavior change** — if any user-visible behavior changes, this should have been a story, not a debt item
+
+### Improvement (existing feature)
+- [ ] **Original happy path still works** — old E2E scenarios pass unchanged
+- [ ] New behavior covered by at least one new scenario
+
+## Review-loop policy: one retry, then stop
+
+When CHANGES REQUESTED triggers a fix:
+
+1. Comment with explicit problem list, classified BLOCKER / SUGGESTION / NIT
+2. @-mention original dev (does NOT reassign)
+3. Wait for the dev's "Fix in <sha>" comment
+4. **Re-review v2 ONCE** with the same focus — verify each blocker from v1 is addressed; do NOT introduce new blockers unless the dev's fix introduced them
+5. If v2 still has BLOCKER: **HARD STOP** — comment `## Review v2 — HARD STOP` and add `@<human>` for manual triage. Do NOT keep looping (avoids infinite review-fix cycles where agent guidelines drift)
+
+The fix-agent prompt template (when @-mentioned in CHANGES REQUESTED): instruct dev to **fix ONLY the listed problems. Do not refactor. Do not improve unrelated code. Do not add new tests beyond what's needed for the fix.**
+
+## PR Acceptance Criteria table
+
+When approving, ask the original dev to update the PR body with this table before merging:
+
+```markdown
+## Acceptance Criteria
+
+| Criterion | Status | Evidence |
+|---|---|---|
+| AC-1: <text> | ✅ | E2E test `bulk-print-button-disabled-when-empty` |
+| AC-2: <text> | ✅ | Manual smoke screenshot in Multica issue |
+| AC-3: <text> | ✅ | RBAC scenario `bulk-print-hidden-for-member-role` |
+```
+
+Each AC must cite either an automated test, a smoke screenshot, or a code reference. "Trust me bro" is rejected.
+
 ## Hard rules
 
 - NEVER push commits — only comment

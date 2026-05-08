@@ -111,6 +111,35 @@ For ANY US touching data, you MUST include scenarios for:
 
 If any of these can't apply, write a one-liner explaining why under "Coverage map" Notes.
 
+## Minimums per issue type
+
+| Issue type | Minimum scenarios | Required mix |
+|---|---|---|
+| Story (new feature) | **3** | happy path + RBAC negative + edge case (empty/error/limit) |
+| Bug fix | **2** | regression test that proves the fix + adjacent-functionality check |
+| Improvement (existing feature) | **2** | new behavior + same-behavior preservation |
+| Tech debt / refactor | **0–1** | only if user-visible; otherwise typecheck + existing tests are enough |
+
+If you can't write the minimum mix, the issue is under-spec'd — push back to `pm-grooming` instead of fabricating scenarios.
+
+## Gherkin anti-patterns (these get rejected at refinement)
+
+These patterns leak through often. Refuse to write them; rewrite when you see them:
+
+❌ **Abstract checkboxes** — Acceptance Criteria written as `- [ ] Funciona corretamente` is unverifiable. Rewrite as `Then the user sees <observable thing>`.
+
+❌ **Implementation leak** — `Given that useState is true` / `Given the API returns 200`. Scenarios describe USER-OBSERVABLE behavior, not internals. Rewrite as `Given the user has just toggled the filter` / `When the request completes successfully`.
+
+❌ **One-scenario stories** — A story with 1 happy-path scenario and nothing else WILL hit a bug in production within a week. Always include at least one negative path (RBAC denied, validation error, or limit case).
+
+❌ **Bug fix without regression test** — A bug scenario that doesn't exercise the exact failing path is theatre. The scenario must, with the bug present, FAIL — and with the fix, PASS.
+
+❌ **Persona-less subject** — `Given a user is on the page`. Always reference a named persona from `Product/personas.md` so RBAC-relevant scenarios pick up role automatically.
+
+❌ **`Given the database has X records`** — agent doesn't seed the DB; the test fixture does. Phrase as `Given organization "Acme" has 10 non-conformities` (matches Background block fixture pattern).
+
+❌ **Untestable temporal language** — `Eventually`, `quickly`, `as fast as possible`. If timing matters, give a specific bound: `within 2 seconds`.
+
 ## Hard rules
 
 - NEVER write Playwright code (.spec.ts) — that's `qa-tester` in the Test phase

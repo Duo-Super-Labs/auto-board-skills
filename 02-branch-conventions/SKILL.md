@@ -81,6 +81,67 @@ After review approves and merges into `us-<N>`:
 git push origin --delete fe-DUO-12-13-login-form
 ```
 
+## Safe staging — never `git add -A`
+
+`git add -A` (or `git add .`) stages **everything in the working tree**, which routinely picks up files that should never enter version control. The staging discipline below is enforced by hooks (see `~/.claude/settings.json` `git-guardrails`) but agents should follow it manually too.
+
+### Blocklist — never stage these
+
+```
+.env
+.env.*                  (any env file)
+*.pem
+*.key
+*.crt
+credentials.json
+credentials.*.json
+.DS_Store
+node_modules/           (already in .gitignore but verify)
+dist/
+build/
+coverage/
+.next/
+.turbo/
+.cache/
+*.local
+```
+
+If your `git status` shows any of these as untracked, **stop and add them to `.gitignore` first** before staging anything.
+
+### Stage by name, not by glob
+
+```bash
+# ❌ BAD — picks up secrets, build artefacts, IDE files
+git add -A
+git add .
+
+# ✅ GOOD — explicit paths
+git add packages/database/src/schema/non-conformity.ts
+git add packages/database/src/schema/zod.ts
+git add packages/database/src/query/non-conformities.ts
+git add packages/contracts/src/non-conformities.ts
+git add packages/api/modules/admin/procedures/bulk-print.ts
+git add apps/web/modules/admin/non-conformities/components/BulkPrintButton.tsx
+
+# ✅ GOOD — scoped glob (when you know the directory is clean)
+git add 'packages/database/src/schema/*.ts'
+```
+
+### Pre-commit verification
+
+Before every commit:
+
+```bash
+# 1. Confirm no blocked files are staged
+git diff --cached --name-only | grep -E '\.(env|pem|key|crt)$|credentials' && {
+  echo "🚨 BLOCKED FILE STAGED — unstage with 'git restore --staged <file>'"
+  exit 1
+}
+
+# 2. Show the actual diff to confirm it's only what you intended
+git diff --cached --stat
+```
+
 ## Squash policy
 
 - Children → us-N: **squash-merge** (single commit per child task)
