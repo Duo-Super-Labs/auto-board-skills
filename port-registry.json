@@ -10,7 +10,16 @@
       "minio_console": 9001,
       "mailpit_smtp": 1025,
       "mailpit_ui": 8025
+    },
+    "aftersale": {
+      "offset": 1,
+      "postgres": 5442,
+      "postgres_test": 5443,
+      "minio_api": 9010,
+      "minio_console": 9011,
+      "mailpit_smtp": 1035,
+      "mailpit_ui": 8035
     }
   },
-  "$next_available_offset": 1
+  "$next_available_offset": 2
 }
